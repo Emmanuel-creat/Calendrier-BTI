@@ -295,22 +295,14 @@ body {
 .error { color: #a6564c; font-size: 13px; margin: 0; }
 
 /* ─── Weeks grid ─────────────────────────────────────────── */
-.weeks-fieldset {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 12px 10px;
-  background: var(--surface-tint);
+.weeks-label { gap: 8px; }
+.weeks-label > span:first-child .hint {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 12px;
+  margin-left: 4px;
 }
-.weeks-fieldset legend {
-  padding: 0 6px;
-  font-size: 14px;
-  color: var(--text);
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 500;
-}
-.weeks-fieldset legend .hint { color: var(--text-muted); font-weight: 400; font-size: 12px; margin-left: 4px; }
-.weeks-actions { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.weeks-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .weeks-actions button {
   padding: 5px 12px;
   border-radius: 999px;
