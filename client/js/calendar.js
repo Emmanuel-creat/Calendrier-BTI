@@ -8,19 +8,23 @@ const GRID_START_HOUR = 8;
 const GRID_END_HOUR = 18;
 const HOURS = GRID_END_HOUR - GRID_START_HOUR;
 
-// Palette basée sur la couleur d'origine (ARGB Excel).
+// Palette basée sur la couleur d'origine (ARGB Excel) →
+//   rose (FFFA06B4)   → BTI
+//   jaune (FFFFFF00/FFFFC000) → Cours communs
+//   bleu (FF00B0F0)   → PolyTech + BTI
+//   orange (FFFF6600/FFFF8837) → ECM + BTI
 function colorClass(color, special) {
   if (special) return 'special';
   if (!color) return '';
   switch (color.toUpperCase()) {
-    case 'FFFA06B4': return 'c-pink';
+    case 'FFFA06B4': return 'c-rose';
+    case 'FFFFFF00':
+    case 'FFFFC000': return 'c-jaune';
+    case 'FF00B0F0': return 'c-bleu';
     case 'FFFF6600':
     case 'FFFF8837': return 'c-orange';
-    case 'FF00B0F0': return 'c-blue';
-    case 'FFFF0000': return 'c-red';
-    case 'FF00FF99': return 'c-green';
-    case 'FFFFFF00':
-    case 'FFFFC000': return 'c-yellow';
+    case 'FF00FF99': return 'c-vert';
+    case 'FFFF0000': return 'c-rouge';
     default: return '';
   }
 }
@@ -57,8 +61,8 @@ export function renderCalendar(container, {
       class: `day-header${isToday ? ' today' : ''}${!isActiveMobile ? ' hidden-mobile' : ''}`,
     });
     header.innerHTML = `
-      <span>${DAY_NAMES[dayDate.getDay()]}</span>
-      <strong>${dayDate.getDate()} ${dayDate.toLocaleDateString('fr-FR', { month: 'short' })}</strong>
+      <span class="day-name">${DAY_NAMES[dayDate.getDay()]}</span>
+      <strong>${dayDate.getDate()}<span style="font-size:12px;color:var(--text-subtle);margin-left:4px">${dayDate.toLocaleDateString('fr-FR', { month: 'short' })}</span></strong>
     `;
     dayHeaders.push(header);
     container.appendChild(header);

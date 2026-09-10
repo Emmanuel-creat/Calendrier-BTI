@@ -46,17 +46,21 @@ const NOISE_VALUES = new Set([
   '?', '²', '',
 ]);
 
-// Couleurs de fond identifiées empiriquement dans le fichier V5.
-// Elles orientent la classification en groupes d'accueil.
+// Table couleur → groupes/profils, fournie par l'auteur du planning :
+//   rose   → BTI
+//   jaune  → tous cours communs (toutes formations)
+//   bleu   → PolyTech + BTI
+//   orange → ECM + BTI
+// Les autres teintes (rouge, vert) sont des marqueurs d'événements.
 const COLOR_HINTS = {
-  FFFA06B4: { label: 'Rose (cours communs)',      groups: ['BTI'] },
-  FFFF6600: { label: 'Orange (Anatomie/Chir.)',   groups: ['BTI'] },
-  FF00B0F0: { label: 'Bleu (Projet/Réglementaire)', groups: ['BTI'] },
-  FF00FF99: { label: 'Vert (événements)',         groups: ['BTI'] },
-  FFFF0000: { label: 'Rouge (spécial)',           groups: ['BTI'] },
-  FFFF8837: { label: 'Orange soutenu (SAE examen)', groups: ['BTI'] },
-  FFFFC000: { label: 'Jaune (entêtes)',           groups: [] },
-  FFFFFF00: { label: 'Jaune vif (dates)',         groups: [] },
+  FFFA06B4: { label: 'Rose (BTI)',                    groups: ['BTI'] },
+  FFFFFF00: { label: 'Jaune (cours communs)',         groups: ['Commun', 'BTI', 'STAPS', 'PolyTech', 'ECM', 'Clinicien'] },
+  FFFFC000: { label: 'Jaune moutarde (cours communs)', groups: ['Commun', 'BTI', 'STAPS', 'PolyTech', 'ECM', 'Clinicien'] },
+  FF00B0F0: { label: 'Bleu (PolyTech + BTI)',         groups: ['BTI', 'PolyTech'] },
+  FFFF6600: { label: 'Orange (ECM + BTI)',            groups: ['BTI', 'ECM'] },
+  FFFF8837: { label: 'Orange soutenu (ECM + BTI)',    groups: ['BTI', 'ECM'] },
+  FF00FF99: { label: 'Vert (événement)',              groups: ['BTI'] },
+  FFFF0000: { label: 'Rouge (spécial)',               groups: ['BTI'] },
 };
 
 // Motifs textuels qui aident à identifier les groupes / origines / sous-groupes
@@ -200,6 +204,11 @@ function detectGroups(rawText, color) {
 
   // Par défaut, tout cours identifié concerne la promo BTI si aucun groupe précis.
   if (groups.size === 0) groups.add('BTI');
+  else if (!groups.has('BTI') && (groups.has('STAPS') || groups.has('PolyTech') || groups.has('ECM') || groups.has('Clinicien'))) {
+    // Une couleur ou un texte a précisé une origine, on garde 'BTI' comme
+    // « famille » pour cohérence avec le filtre par profil.
+    groups.add('BTI');
+  }
   return [...groups];
 }
 

@@ -20,14 +20,15 @@ const state = {
 const elCalendar    = document.getElementById('calendar');
 const elCalendarWrap = document.getElementById('calendar-wrap');
 const elEmpty       = document.getElementById('empty-state');
-const elSubtitle    = document.getElementById('subtitle');
+const elEyebrow     = document.getElementById('topbar-eyebrow');
+const elHeading     = document.getElementById('topbar-heading');
 const elProfile     = document.getElementById('profile-select');
 const elWeekInput   = document.getElementById('week-input');
 const elPrev        = document.getElementById('prev-week');
 const elNext        = document.getElementById('next-week');
 const elToday       = document.getElementById('today-btn');
 const elMeta        = document.getElementById('meta-info');
-const elUpcoming    = document.getElementById('upcoming');
+const elPromoMeta   = document.getElementById('promo-meta');
 const elPillNow     = document.getElementById('pill-now');
 const elPillNext    = document.getElementById('pill-next');
 const elModal       = document.getElementById('course-modal');
@@ -82,7 +83,11 @@ function render() {
   elWeekInput.value = toWeekInputValue(state.weekStart);
   const label = isoWeekLabel(state.weekStart);
   const annotation = state.currentWeekMeta?.annotation ? ` · ${state.currentWeekMeta.annotation}` : '';
-  elSubtitle.textContent = `${label}${annotation}`;
+  const isCurrentWeek = state.weekStart === mondayOf(new Date());
+  elEyebrow.textContent = isCurrentWeek ? 'Semaine en cours' : label;
+  elHeading.textContent = isCurrentWeek
+    ? `Aujourd’hui${annotation}`
+    : `Du ${dateShort(state.weekStart)} au ${dateShort(isoAddDays(state.weekStart, 4))}${annotation}`;
 
   renderCalendar(elCalendar, {
     weekStart: state.weekStart,
@@ -109,9 +114,9 @@ function render() {
 }
 
 function updateMeta() {
-  const parts = [];
-  parts.push(`${state.courses.length} cours cette semaine`);
-  elMeta.textContent = parts.join(' · ');
+  const s = state.courses.length === 1 ? 'cours' : 'cours';
+  elMeta.textContent = `${state.courses.length} ${s} cette semaine`;
+  if (elPromoMeta) elPromoMeta.textContent = `Source Excel · ${state.weeksMeta.length} semaines chargées`;
 }
 
 function updatePills() {
@@ -125,15 +130,13 @@ function updatePills() {
 
   if (running) {
     elPillNow.hidden = false;
-    elPillNow.textContent = `En cours : ${running.title} · ${running.startTime}–${running.endTime}${running.room ? ' · ' + running.room : ''}`;
+    elPillNow.textContent = `${running.title} — jusqu’à ${running.endTime}${running.room ? ' · ' + running.room : ''}`;
   } else elPillNow.hidden = true;
 
   if (next) {
     elPillNext.hidden = false;
-    elPillNext.textContent = `Prochain : ${next.title} à ${next.startTime}${next.room ? ' (' + next.room + ')' : ''}`;
+    elPillNext.textContent = `Prochain à ${next.startTime} · ${next.title}`;
   } else elPillNext.hidden = true;
-
-  elUpcoming.hidden = elPillNow.hidden && elPillNext.hidden;
 }
 
 function wireEvents() {
@@ -232,6 +235,9 @@ function renderCourseDetails(c) {
 
 function dateLong(iso) {
   return parseISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+function dateShort(iso) {
+  return parseISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
 function escapeHtml(s) {

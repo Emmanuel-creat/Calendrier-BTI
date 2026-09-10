@@ -3,53 +3,95 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#f5f2eb" />
   <title>Planning M2 BTI</title>
   <link rel="stylesheet" href="/css/app.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E📅%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
-  <header class="app-header">
-    <div class="app-title">
-      <h1>Planning M2 BTI</h1>
-      <p class="subtitle" id="subtitle">Semaine en cours</p>
-    </div>
-
-    <div class="header-controls">
-      <label class="profile-picker">
-        <span>Profil</span>
-        <select id="profile-select" aria-label="Profil"></select>
-      </label>
-
-      <div class="week-nav" role="group" aria-label="Navigation semaine">
-        <button type="button" class="btn-icon" id="prev-week" aria-label="Semaine précédente">‹</button>
-        <button type="button" class="btn-today" id="today-btn">Aujourd’hui</button>
-        <button type="button" class="btn-icon" id="next-week" aria-label="Semaine suivante">›</button>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <h1>Planning<br /><span class="brand-accent">M2 BTI</span></h1>
       </div>
 
-      <label class="week-picker">
-        <input type="week" id="week-input" aria-label="Choisir une semaine" />
-      </label>
-    </div>
-  </header>
+      <nav class="sidebar-nav">
+        <button type="button" class="nav-item active" id="today-btn">
+          <span class="nav-ico">◐</span>
+          <span>Aujourd’hui</span>
+        </button>
 
-  <section id="upcoming" class="upcoming" hidden>
-    <div class="pill-row">
-      <div class="pill pill-now" id="pill-now" hidden></div>
-      <div class="pill pill-next" id="pill-next" hidden></div>
-    </div>
-  </section>
+        <div class="nav-block">
+          <label class="nav-label">Profil</label>
+          <div class="nav-select">
+            <select id="profile-select" aria-label="Profil"></select>
+          </div>
+        </div>
 
-  <main class="calendar-wrap" id="calendar-wrap">
-    <div id="calendar" class="calendar" role="grid" aria-label="Emploi du temps hebdomadaire"></div>
-    <div class="empty-state" id="empty-state" hidden>
-      <p>Aucun cours cette semaine.</p>
-    </div>
-  </main>
+        <div class="nav-block">
+          <label class="nav-label">Semaine</label>
+          <div class="week-nav">
+            <button type="button" class="btn-icon" id="prev-week" aria-label="Semaine précédente">‹</button>
+            <input type="week" id="week-input" aria-label="Choisir une semaine" />
+            <button type="button" class="btn-icon" id="next-week" aria-label="Semaine suivante">›</button>
+          </div>
+        </div>
 
-  <footer class="app-footer">
-    <span id="meta-info"></span>
-  </footer>
+        <div class="nav-block">
+          <label class="nav-label">Légende</label>
+          <ul class="legend">
+            <li><span class="legend-chip c-rose"></span> BTI (tous)</li>
+            <li><span class="legend-chip c-jaune"></span> Cours communs</li>
+            <li><span class="legend-chip c-bleu"></span> PolyTech + BTI</li>
+            <li><span class="legend-chip c-orange"></span> ECM + BTI</li>
+            <li><span class="legend-chip c-vert"></span> Événement</li>
+          </ul>
+        </div>
+      </nav>
+
+      <div class="sidebar-promo">
+        <div class="promo-illu">
+          <svg viewBox="0 0 100 60" aria-hidden="true">
+            <path d="M0 55 L18 32 L36 42 L54 20 L72 28 L90 8 L100 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+            <path d="M85 15 L92 8 L98 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+          </svg>
+        </div>
+        <h3>Planning à jour</h3>
+        <p id="promo-meta">Source Excel · toujours synchronisée</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-title">
+          <p class="eyebrow" id="topbar-eyebrow">Semaine en cours</p>
+          <h2 id="topbar-heading">Aujourd’hui</h2>
+        </div>
+        <div class="topbar-right">
+          <div class="pill-row">
+            <div class="pill pill-now" id="pill-now" hidden></div>
+            <div class="pill pill-next" id="pill-next" hidden></div>
+          </div>
+        </div>
+      </header>
+
+      <section class="calendar-card">
+        <div id="calendar-wrap">
+          <div id="calendar" class="calendar" role="grid" aria-label="Emploi du temps hebdomadaire"></div>
+          <div class="empty-state" id="empty-state" hidden>
+            <p>Aucun cours cette semaine.</p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="app-footer">
+        <span id="meta-info"></span>
+      </footer>
+    </main>
+  </div>
 
   <div id="course-modal" class="modal" hidden>
     <div class="modal-backdrop" data-modal-close></div>
