@@ -1,0 +1,30 @@
+{
+  "name": "calendrier-bti",
+  "version": "1.0.0",
+  "description": "Emploi du temps global du M2 BTI (STAPS / PolyTech / ECM).",
+  "type": "module",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js",
+    "import": "node scripts/import-excel.js",
+    "diff": "node scripts/diff-excel.js",
+    "verify": "node scripts/verify.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "emploi-du-temps",
+    "bti",
+    "calendrier",
+    "planning"
+  ],
+  "author": "Manu",
+  "license": "MIT",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2"
+  }
+}

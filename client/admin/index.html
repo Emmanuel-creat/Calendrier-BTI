@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Constructeur · Planning M2 BTI</title>
+  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="/constructeur/admin.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E🔧%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <div id="login-view" class="login-view">
+    <form id="login-form" class="login-form">
+      <h1>Espace constructeur</h1>
+      <p class="muted">Accès protégé — mot de passe requis.</p>
+      <label>
+        <span>Mot de passe</span>
+        <input type="password" id="login-password" autocomplete="off" required />
+      </label>
+      <button type="submit">Se connecter</button>
+      <p id="login-error" class="error" hidden></p>
+    </form>
+  </div>
+
+  <div id="admin-view" hidden>
+    <header class="admin-header">
+      <div>
+        <h1>Constructeur · Planning M2 BTI</h1>
+        <p class="muted" id="admin-meta"></p>
+      </div>
+      <div class="admin-actions">
+        <button type="button" id="btn-new-course" class="btn-primary">＋ Nouveau cours</button>
+        <button type="button" id="btn-diff">Diff Excel</button>
+        <button type="button" id="btn-reimport">Recharger l’Excel</button>
+        <button type="button" id="btn-reset" class="danger">Réinitialiser overrides</button>
+        <button type="button" id="btn-logout">Déconnexion</button>
+      </div>
+    </header>
+
+    <section class="admin-toolbar">
+      <label>
+        <span>Semaine</span>
+        <select id="filter-week"></select>
+      </label>
+      <label>
+        <span>Recherche</span>
+        <input type="search" id="filter-search" placeholder="Titre, prof, salle…" />
+      </label>
+      <label>
+        <span>Groupe</span>
+        <select id="filter-group">
+          <option value="">Tous</option>
+        </select>
+      </label>
+      <span class="count" id="course-count"></span>
+    </section>
+
+    <section class="admin-list-wrap">
+      <table class="admin-list">
+        <thead>
+          <tr>
+            <th>Semaine</th>
+            <th>Jour</th>
+            <th>Heure</th>
+            <th>Cours</th>
+            <th>Enseignant</th>
+            <th>Salle</th>
+            <th>Groupes</th>
+            <th>Origine</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="admin-tbody"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- Modale édition -->
+  <div id="edit-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-panel modal-panel-wide" role="dialog" aria-labelledby="edit-title">
+      <button class="modal-close" type="button" data-modal-close>×</button>
+      <h2 id="edit-title">Cours</h2>
+      <form id="edit-form" class="edit-form">
+        <input type="hidden" name="courseId" />
+        <div class="grid-2">
+          <label>
+            <span>Titre <span class="req">*</span></span>
+            <input name="title" required />
+          </label>
+          <label>
+            <span>Enseignant·e</span>
+            <input name="teacher" />
+          </label>
+          <label>
+            <span>Salle</span>
+            <input name="room" />
+          </label>
+          <label>
+            <span>Groupes (séparés par ,)</span>
+            <input name="groups" placeholder="BTI, STAPS, Groupe A" />
+          </label>
+          <label>
+            <span>Jour <span class="req">*</span></span>
+            <select name="dayOfWeek" required>
+              <option value="1">Lundi</option>
+              <option value="2">Mardi</option>
+              <option value="3">Mercredi</option>
+              <option value="4">Jeudi</option>
+              <option value="5">Vendredi</option>
+            </select>
+          </label>
+          <label>
+            <span>Créneau <span class="req">*</span></span>
+            <span class="times">
+              <input name="startTime" type="time" step="900" required />
+              <span>→</span>
+              <input name="endTime" type="time" step="900" required />
+            </span>
+          </label>
+        </div>
+
+        <fieldset class="weeks-fieldset">
+          <legend>Semaines <span class="req">*</span> — clique / cliquer-glisser pour sélectionner</legend>
+          <div class="weeks-actions">
+            <button type="button" data-weeks="all">Toutes</button>
+            <button type="button" data-weeks="none">Aucune</button>
+            <button type="button" data-weeks="future">À partir de la semaine sélectionnée</button>
+          </div>
+          <div id="weeks-grid" class="weeks-grid"></div>
+        </fieldset>
+
+        <label>
+          <span>Notes</span>
+          <textarea name="notes" rows="2"></textarea>
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Enregistrer</button>
+          <button type="button" id="edit-delete" class="danger" hidden>Supprimer ce cours</button>
+          <button type="button" data-modal-close>Annuler</button>
+        </div>
+        <p id="edit-error" class="error" hidden></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modale diff -->
+  <div id="diff-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-panel modal-panel-wide">
+      <button class="modal-close" type="button" data-modal-close>×</button>
+      <h2>Différences Excel ↔ site</h2>
+      <div id="diff-body"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/constructeur/admin.js"></script>
+</body>
+</html>

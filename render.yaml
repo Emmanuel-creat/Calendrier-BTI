@@ -1,0 +1,25 @@
+# Blueprint Render — https://render.com/docs/blueprint-spec
+# Un simple web service Node.js. La persistance des modifications constructeur
+# nécessite un disque monté (`disk`), sinon les overrides sont perdus au
+# redémarrage (l'Excel reste, lui, dans le repo Git).
+
+services:
+  - type: web
+    name: calendrier-bti
+    runtime: node
+    plan: free                # Bascule sur "starter" pour bénéficier du disk.
+    branch: master
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CONSTRUCTOR_PASSWORD
+        sync: false            # À définir manuellement dans le dashboard Render.
+      - key: DATA_DIR
+        value: /var/data       # Racine du disque monté ci-dessous.
+    disk:
+      name: bti-data
+      mountPath: /var/data
+      sizeGB: 1
+    healthCheckPath: /healthz
