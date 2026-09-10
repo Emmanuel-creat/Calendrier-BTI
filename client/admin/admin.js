@@ -258,10 +258,17 @@ function openEdit(c = null, prefill = null) {
   modal.hidden = false;
 }
 
-// Drag state pour la sélection des semaines. Les listeners sont attachés
-// UNE SEULE FOIS (voir wireWeeksGridDrag) pour éviter l'accumulation à
-// chaque re-render de la grille.
+// Drag state pour la sélection des semaines. Attaché une seule fois.
+//
+// Comportement voulu :
+//   - Simple clic sur une case → toggle uniquement cette case.
+//   - Clic + glisser (au moins 6 px) → toggle chaque case survolée en
+//     appliquant le mode déterminé par la case initiale
+//     (case déjà sélectionnée → mode remove ; sinon → mode add).
+//   - Simple survol sans bouton pressé : aucun effet.
+const DRAG_THRESHOLD_PX = 6;
 let _weeksLastToggled = null;
+let _dragArmedAt = null; // {x, y, chip, wk} au pointerdown, avant seuil.
 
 function chipAt(x, y) {
   const el = document.elementFromPoint(x, y);
@@ -274,18 +281,32 @@ function wireWeeksGridDrag() {
   grid.dataset.wired = '1';
 
   grid.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return; // clic gauche seulement
     const chip = chipAt(e.clientX, e.clientY);
     if (!chip) return;
     e.preventDefault();
     const wk = chip.dataset.week;
-    state.dragging = true;
+    // On arme le drag mais on ne commence PAS à toggler les autres cases.
+    // Le premier chip est toggle immédiatement (comportement "clic").
+    _dragArmedAt = { x: e.clientX, y: e.clientY, chip, wk };
     state.dragMode = state.weeksSelected.has(wk) ? 'remove' : 'add';
     toggleWeek(wk, state.dragMode === 'add');
     _weeksLastToggled = wk;
+    state.dragging = false; // devient true dès qu'on dépasse le seuil
   });
 
   window.addEventListener('pointermove', (e) => {
-    if (!state.dragging) return;
+    // Pas de drag armé ni actif → rien à faire (le hover ne toggle rien).
+    if (!_dragArmedAt && !state.dragging) return;
+
+    // Phase d'armement : on attend un déplacement > seuil pour démarrer.
+    if (_dragArmedAt && !state.dragging) {
+      const dx = e.clientX - _dragArmedAt.x;
+      const dy = e.clientY - _dragArmedAt.y;
+      if ((dx * dx + dy * dy) < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) return;
+      state.dragging = true;
+    }
+
     const chip = chipAt(e.clientX, e.clientY);
     if (!chip) return;
     const wk = chip.dataset.week;
@@ -294,9 +315,15 @@ function wireWeeksGridDrag() {
     toggleWeek(wk, state.dragMode === 'add');
   });
 
-  const stopDrag = () => { state.dragging = false; state.dragMode = null; _weeksLastToggled = null; };
+  const stopDrag = () => {
+    state.dragging = false;
+    state.dragMode = null;
+    _weeksLastToggled = null;
+    _dragArmedAt = null;
+  };
   window.addEventListener('pointerup', stopDrag);
   window.addEventListener('pointercancel', stopDrag);
+  window.addEventListener('blur', stopDrag);
 }
 
 function renderWeeksGrid() {
