@@ -6,9 +6,11 @@ import {
 } from './dates.js';
 import { renderCalendar, buildMobileDayTabs } from './calendar.js';
 
+const ALLOWED_PROFILES = new Set(['BTI', 'PolyTech', 'ECM', 'Clinicien']);
+const storedProfile = localStorage.getItem('bti.profile');
 const state = {
   weekStart: mondayOf(new Date()),
-  profile: localStorage.getItem('bti.profile') || 'BTI',
+  profile: storedProfile && ALLOWED_PROFILES.has(storedProfile) ? storedProfile : 'BTI',
   today: todayIso(),
   now: new Date(),
   activeMobileDay: null,
