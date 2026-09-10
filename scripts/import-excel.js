@@ -15,7 +15,9 @@ const sheetName = process.env.EXCEL_SHEET || '26_27_V5';
 console.log(`[import] Lecture   : ${excelPath}`);
 console.log(`[import] Feuille   : ${sheetName}`);
 
-const result = await parseExcelFile(excelPath, sheetName);
+const shiftDays = process.env.EXCEL_SHIFT_DAYS != null ? Number(process.env.EXCEL_SHIFT_DAYS) : 364;
+console.log(`[import] Décalage : ${shiftDays} jours`);
+const result = await parseExcelFile(excelPath, sheetName, { shiftDays });
 console.log(`[import] Cours     : ${result.courses.length}`);
 console.log(`[import] Semaines  : ${result.weeks.length}`);
 if (result.warnings.length) {

@@ -16,11 +16,12 @@ import path from 'node:path';
 import { parseExcelFile } from './excel-parser.js';
 
 export class PlanningStore {
-  constructor({ excelPath, cachePath, overridesPath, sheetName = '26_27_V5' } = {}) {
+  constructor({ excelPath, cachePath, overridesPath, sheetName = '26_27_V5', shiftDays } = {}) {
     this.excelPath = excelPath;
     this.cachePath = cachePath;
     this.overridesPath = overridesPath;
     this.sheetName = sheetName;
+    this.shiftDays = Number.isFinite(shiftDays) ? shiftDays : 364;
     this.base = null;      // { courses, weeks, warnings, parsedAt }
     this.overrides = { ops: [], updatedAt: null };
     this.cache = null;     // Cours effectif (base + overrides appliqués)
@@ -47,10 +48,11 @@ export class PlanningStore {
   }
 
   async reimportFromExcel() {
-    const result = await parseExcelFile(this.excelPath, this.sheetName);
+    const result = await parseExcelFile(this.excelPath, this.sheetName, { shiftDays: this.shiftDays });
     this.base = {
       parsedAt: new Date().toISOString(),
       sheetName: this.sheetName,
+      shiftDays: this.shiftDays,
       ...result,
     };
     await fs.mkdir(path.dirname(this.cachePath), { recursive: true });

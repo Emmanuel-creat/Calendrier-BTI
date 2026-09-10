@@ -254,9 +254,16 @@ function findMergeAt(ws, row, col) {
   return null;
 }
 
-export function parseWorkbook(workbook, sheetName = '26_27_V5') {
+export function parseWorkbook(workbook, sheetName = '26_27_V5', options = {}) {
   const ws = workbook.getWorksheet(sheetName);
   if (!ws) throw new Error(`Feuille introuvable: ${sheetName}`);
+
+  // Décalage à appliquer sur toutes les dates lues, en jours.
+  // Le fichier V5 actuel porte des dates 2025-2026 alors qu'il représente
+  // en réalité l'année universitaire 2026-2027. Un décalage de +52 semaines
+  // (364 jours) préserve l'alignement lundi-vendredi et remet les cours à
+  // leur date réelle. À désactiver (`0`) quand l'Excel sera mis à jour.
+  const shiftDays = Number.isFinite(options.shiftDays) ? options.shiftDays : 364;
 
   const courses = [];
   const weeks = new Map(); // key = ISO du lundi
@@ -272,10 +279,10 @@ export function parseWorkbook(workbook, sheetName = '26_27_V5') {
     // semaine porte parfois la date du dimanche précédent. On aligne
     // systématiquement la semaine sur le lundi réel (jour ISO 1).
     const lundiExcel = toIsoDate(ws.getCell(row, DAY_BLOCKS[0].dateCol).value);
-    const weekStart = alignToRealMonday(lundiExcel || weekStartRawExcel);
-    const weekEnd = weekEndRawExcel
-      ? alignToRealFriday(weekEndRawExcel, weekStart)
-      : addIsoDays(weekStart, 4);
+    const alignedMonday = alignToRealMonday(lundiExcel || weekStartRawExcel);
+    // Décalage annuel (par défaut +52 semaines) — voir commentaire en tête.
+    const weekStart = shiftDays ? addIsoDays(alignedMonday, shiftDays) : alignedMonday;
+    const weekEnd = addIsoDays(weekStart, 4);
     const annotation = textOf(ws.getCell(row, 3).value).trim() || null;
 
     weeks.set(weekStart, {
@@ -403,8 +410,8 @@ function addIsoDays(iso, n) {
   return d.toISOString().slice(0, 10);
 }
 
-export async function parseExcelFile(filePath, sheetName = '26_27_V5') {
+export async function parseExcelFile(filePath, sheetName = '26_27_V5', options = {}) {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(filePath);
-  return parseWorkbook(wb, sheetName);
+  return parseWorkbook(wb, sheetName, options);
 }

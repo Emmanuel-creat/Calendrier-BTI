@@ -8,7 +8,8 @@ import { parseExcelFile } from '../server/lib/excel-parser.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const excelPath = path.join(__dirname, '..', 'data', 'planning.xlsx');
 
-const { courses, weeks } = await parseExcelFile(excelPath, process.env.EXCEL_SHEET || '26_27_V5');
+const shiftDays = process.env.EXCEL_SHIFT_DAYS != null ? Number(process.env.EXCEL_SHIFT_DAYS) : 364;
+const { courses, weeks } = await parseExcelFile(excelPath, process.env.EXCEL_SHEET || '26_27_V5', { shiftDays });
 
 let errors = 0;
 const check = (cond, msg) => {

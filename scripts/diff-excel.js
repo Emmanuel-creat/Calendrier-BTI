@@ -11,6 +11,7 @@ const store = new PlanningStore({
   cachePath: process.env.CACHE_PATH || path.join(root, 'data', 'planning-cache.json'),
   overridesPath: process.env.OVERRIDES_PATH || path.join(root, 'data', 'overrides.json'),
   sheetName: process.env.EXCEL_SHEET || '26_27_V5',
+  shiftDays: process.env.EXCEL_SHIFT_DAYS != null ? Number(process.env.EXCEL_SHIFT_DAYS) : undefined,
 });
 await store.init();
 

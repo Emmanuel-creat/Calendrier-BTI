@@ -20,6 +20,7 @@ const store = new PlanningStore({
   cachePath: CACHE_PATH,
   overridesPath: OVERRIDES_PATH,
   sheetName: EXCEL_SHEET,
+  shiftDays: process.env.EXCEL_SHIFT_DAYS != null ? Number(process.env.EXCEL_SHIFT_DAYS) : undefined,
 });
 await store.init();
 
