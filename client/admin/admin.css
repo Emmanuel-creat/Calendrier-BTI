@@ -294,6 +294,59 @@ body {
 .form-actions button { padding: 8px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
 .error { color: #a6564c; font-size: 13px; margin: 0; }
 
+/* ─── Occurrences (créneaux d'un cours) ─────────────────── */
+.occurrences {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.occurrence {
+  background: var(--surface-tint);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.occurrence-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.occurrence-title {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.occurrence-remove {
+  background: transparent;
+  border: 0;
+  color: #a6564c;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.occurrence-remove:hover { background: color-mix(in srgb, #a6564c 10%, transparent); }
+.occurrence .weeks-grid { max-height: none; }
+.occurrence .field-label.small { font-size: 13px; }
+
+.btn-add-occurrence {
+  align-self: flex-start;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px dashed var(--brand);
+  background: transparent;
+  color: var(--brand-strong);
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 13px;
+}
+.btn-add-occurrence:hover { background: var(--brand-cream); }
+
 /* ─── Weeks grid ─────────────────────────────────────────── */
 .field-block {
   display: flex;

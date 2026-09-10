@@ -124,34 +124,12 @@
               <button type="button" class="pchip" data-profile="Clinicien">Clinicien</button>
             </div>
           </div>
-          <label>
-            <span>Jour <span class="req">*</span></span>
-            <select name="dayOfWeek" required>
-              <option value="1">Lundi</option>
-              <option value="2">Mardi</option>
-              <option value="3">Mercredi</option>
-              <option value="4">Jeudi</option>
-              <option value="5">Vendredi</option>
-            </select>
-          </label>
-          <label>
-            <span>Créneau <span class="req">*</span></span>
-            <span class="times">
-              <input name="startTime" type="time" step="900" required />
-              <span>→</span>
-              <input name="endTime" type="time" step="900" required />
-            </span>
-          </label>
         </div>
 
-        <div class="field-block weeks-label">
-          <span class="field-label">Semaines <span class="req">*</span> <span class="hint">— clique ou fais glisser pour sélectionner</span></span>
-          <div class="weeks-actions">
-            <button type="button" data-weeks="all">Toutes</button>
-            <button type="button" data-weeks="none">Aucune</button>
-            <button type="button" data-weeks="future">À partir de la semaine sélectionnée</button>
-          </div>
-          <div id="weeks-grid" class="weeks-grid"></div>
+        <div class="field-block">
+          <span class="field-label">Créneaux <span class="req">*</span> <span class="hint">— ajoute autant de créneaux qu'il y a de jours/heures différents</span></span>
+          <div id="occurrences" class="occurrences"></div>
+          <button type="button" id="add-occurrence" class="btn-add-occurrence">＋ Ajouter un créneau</button>
         </div>
 
         <label>
