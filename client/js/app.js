@@ -11,71 +11,66 @@ const state = {
   profile: localStorage.getItem('bti.profile') || 'BTI',
   today: todayIso(),
   now: new Date(),
-  activeMobileDay: null, // 0..4
+  activeMobileDay: null,
   weeksMeta: [],
   currentWeekMeta: null,
   courses: [],
 };
 
-const elCalendar    = document.getElementById('calendar');
-const elCalendarWrap = document.getElementById('calendar-wrap');
-const elEmpty       = document.getElementById('empty-state');
-const elEyebrow     = document.getElementById('topbar-eyebrow');
-const elHeading     = document.getElementById('topbar-heading');
-const elProfile     = document.getElementById('profile-select');
-const elWeekInput   = document.getElementById('week-input');
-const elPrev        = document.getElementById('prev-week');
-const elNext        = document.getElementById('next-week');
-const elToday       = document.getElementById('today-btn');
-const elRailToday   = document.getElementById('rail-today');
-const elGotoCurrent = document.getElementById('btn-goto-current');
-const elWeekSelect  = document.getElementById('btn-week-select');
-const elTodayCount  = document.getElementById('today-count');
-const elStatCount   = document.getElementById('stat-count');
-const elStatDelta   = document.getElementById('stat-delta');
-const elMeta        = document.getElementById('meta-info');
-const elPillNow     = document.getElementById('pill-now');
-const elPillNext    = document.getElementById('pill-next');
-const elModal       = document.getElementById('course-modal');
-const elModalBody   = document.getElementById('course-modal-body');
+const $ = (id) => document.getElementById(id);
+const elCalendar    = $('calendar');
+const elCalendarWrap = $('calendar-wrap');
+const elEmpty       = $('empty-state');
+const elEyebrow     = $('topbar-eyebrow');
+const elHeading     = $('topbar-heading');
+const elWeekInput   = $('week-input');
+const elPrev        = $('prev-week');
+const elNext        = $('next-week');
+const elToday       = $('today-btn');
+const elStatCount   = $('stat-count');
+const elPillNow     = $('pill-now');
+const elPillNext    = $('pill-next');
+const elModal       = $('course-modal');
+const elModalBody   = $('course-modal-body');
 
-// Onglet mobile jours (créé dynamiquement)
+// Mobile
+const elMTB        = document.querySelector('.mobile-topbar');
+const elMHeading   = $('m-heading');
+const elMPrev      = $('m-prev');
+const elMNext      = $('m-next');
+const elMMenu      = $('m-open-menu');
+const elMSheet     = $('mobile-sheet');
+const elMPrevWeek  = $('m-prev-week');
+const elMNextWeek  = $('m-next-week');
+const elMWeekInput = $('m-week-input');
+const elMTodayBtn  = $('m-today-btn');
+const elMProfileBtns = $('profile-btns-mobile');
+
+// Onglets jours mobile insérés dynamiquement dans la card calendrier
 const elMobileTabs = document.createElement('div');
 elMobileTabs.className = 'mobile-day-tabs';
 elCalendarWrap.insertBefore(elMobileTabs, elCalendar);
 
-// ─── Bootstrap ───────────────────────────────────────────────────────
+// ─── Bootstrap ───────────────────────────────────────────────
 (async function init() {
-  await loadProfiles();
   await refresh();
   wireEvents();
+  renderProfileButtons();
   scheduleNowTick();
 })();
 
-async function loadProfiles() {
-  const { groups } = await get('/api/profiles');
-  const opts = ['BTI', ...groups.filter((g) => g !== 'BTI')];
-  elProfile.innerHTML = opts.map((g) => {
-    const label = g === 'BTI' ? 'Tous les cours (BTI)' : g;
-    return `<option value="${g}"${g === state.profile ? ' selected' : ''}>${label}</option>`;
-  }).join('');
-}
-
 async function refresh() {
-  // Requête sur la semaine courante
   const { courses } = await get(
     `/api/courses?weekStart=${state.weekStart}&profile=${encodeURIComponent(state.profile)}`
   );
   state.courses = courses;
 
-  // Détecter les métadonnées de la semaine (annotation, etc.)
   if (!state.weeksMeta.length) {
     const { weeks } = await get('/api/weeks');
     state.weeksMeta = weeks;
   }
   state.currentWeekMeta = state.weeksMeta.find((w) => w.weekStart === state.weekStart) || null;
 
-  // Choix par défaut du jour actif en mobile: aujourd'hui si visible, sinon lundi.
   const todayIndex = weekDayIndex(state.weekStart, state.today);
   state.activeMobileDay = todayIndex >= 0 ? todayIndex : 0;
 
@@ -86,6 +81,8 @@ async function refresh() {
 
 function render() {
   elWeekInput.value = toWeekInputValue(state.weekStart);
+  if (elMWeekInput) elMWeekInput.value = toWeekInputValue(state.weekStart);
+
   const label = isoWeekLabel(state.weekStart);
   const annotation = state.currentWeekMeta?.annotation ? ` · ${state.currentWeekMeta.annotation}` : '';
   const isCurrentWeek = state.weekStart === mondayOf(new Date());
@@ -93,6 +90,12 @@ function render() {
   elHeading.textContent = isCurrentWeek
     ? `Aujourd’hui${annotation}`
     : `Du ${dateShort(state.weekStart)} au ${dateShort(isoAddDays(state.weekStart, 4))}${annotation}`;
+
+  // Titre mobile compact
+  if (elMHeading) {
+    if (isCurrentWeek) elMHeading.textContent = 'Aujourd’hui';
+    else elMHeading.textContent = `${dateShort(state.weekStart)} – ${dateShort(isoAddDays(state.weekStart, 4))}`;
+  }
 
   renderCalendar(elCalendar, {
     weekStart: state.weekStart,
@@ -116,16 +119,15 @@ function render() {
   const hasCourses = state.courses.length > 0;
   elCalendar.hidden = !hasCourses;
   elEmpty.hidden = hasCourses;
+
+  // Reflect active profile in both sets of buttons
+  document.querySelectorAll('.profile-btns .pbtn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.profile === state.profile);
+  });
 }
 
 function updateMeta() {
-  elMeta.textContent = `${state.courses.length} cours cette semaine · ${state.weeksMeta.length} semaines chargées`;
   if (elStatCount) elStatCount.textContent = state.courses.length;
-  if (elTodayCount) {
-    const todayCount = state.courses.filter((c) => c.date === state.today).length;
-    elTodayCount.textContent = todayCount;
-    elTodayCount.hidden = todayCount === 0;
-  }
 }
 
 function updatePills() {
@@ -148,46 +150,61 @@ function updatePills() {
   } else elPillNext.hidden = true;
 }
 
+// Reflect / handle profile buttons (desktop + mobile)
+function renderProfileButtons() {
+  // Duplique le contenu desktop dans le sheet mobile.
+  if (elMProfileBtns) {
+    const desktop = document.getElementById('profile-btns');
+    if (desktop) elMProfileBtns.innerHTML = desktop.innerHTML;
+  }
+  document.querySelectorAll('.profile-btns .pbtn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.profile = btn.dataset.profile || 'BTI';
+      localStorage.setItem('bti.profile', state.profile);
+      refresh();
+    });
+  });
+}
+
 function wireEvents() {
-  elPrev.addEventListener('click', () => {
-    state.weekStart = isoAddDays(state.weekStart, -7);
-    refresh();
-  });
-  elNext.addEventListener('click', () => {
-    state.weekStart = isoAddDays(state.weekStart, 7);
-    refresh();
-  });
-  const gotoToday = () => {
+  const goPrev  = () => { state.weekStart = isoAddDays(state.weekStart, -7); refresh(); };
+  const goNext  = () => { state.weekStart = isoAddDays(state.weekStart, 7); refresh(); };
+  const goToday = () => {
     state.today = todayIso();
     state.weekStart = mondayOf(new Date());
     refresh();
   };
-  elToday.addEventListener('click', gotoToday);
-  if (elRailToday) elRailToday.addEventListener('click', gotoToday);
-  if (elGotoCurrent) elGotoCurrent.addEventListener('click', gotoToday);
-  if (elWeekSelect) elWeekSelect.addEventListener('click', () => elWeekInput.showPicker?.() || elWeekInput.focus());
-  elWeekInput.addEventListener('change', () => {
-    const iso = fromWeekInputValue(elWeekInput.value);
-    if (iso) {
-      state.weekStart = iso;
-      refresh();
-    }
-  });
-  elProfile.addEventListener('change', () => {
-    state.profile = elProfile.value;
-    localStorage.setItem('bti.profile', state.profile);
-    refresh();
-  });
+  elPrev.addEventListener('click', goPrev);
+  elNext.addEventListener('click', goNext);
+  elToday.addEventListener('click', goToday);
+  if (elMPrev)     elMPrev.addEventListener('click', goPrev);
+  if (elMNext)     elMNext.addEventListener('click', goNext);
+  if (elMPrevWeek) elMPrevWeek.addEventListener('click', goPrev);
+  if (elMNextWeek) elMNextWeek.addEventListener('click', goNext);
+  if (elMTodayBtn) elMTodayBtn.addEventListener('click', () => { goToday(); closeMobileSheet(); });
+  if (elMHeading)  elMHeading.addEventListener('click', () => openMobileSheet());
+  if (elMMenu)     elMMenu.addEventListener('click', () => openMobileSheet());
 
-  // Fermer la modale
+  const onWeekChange = (input) => {
+    const iso = fromWeekInputValue(input.value);
+    if (iso) { state.weekStart = iso; refresh(); }
+  };
+  elWeekInput.addEventListener('change', () => onWeekChange(elWeekInput));
+  if (elMWeekInput) elMWeekInput.addEventListener('change', () => onWeekChange(elMWeekInput));
+
+  // Fermer les modales / sheets
   elModal.addEventListener('click', (e) => {
     if (e.target instanceof Element && e.target.hasAttribute('data-modal-close')) closeModal();
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  if (elMSheet) elMSheet.addEventListener('click', (e) => {
+    if (e.target instanceof Element && e.target.hasAttribute('data-sheet-close')) closeMobileSheet();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closeModal(); closeMobileSheet(); }
+  });
 
-  // Swipe mobile: navigation entre jours puis semaines
-  let touchStartX = 0;
-  let touchStartY = 0;
+  // Swipe mobile
+  let touchStartX = 0, touchStartY = 0;
   elCalendarWrap.addEventListener('touchstart', (e) => {
     const t = e.touches[0]; touchStartX = t.clientX; touchStartY = t.clientY;
   }, { passive: true });
@@ -196,24 +213,30 @@ function wireEvents() {
     const dx = t.clientX - touchStartX;
     const dy = t.clientY - touchStartY;
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
-    if (window.matchMedia('(max-width: 720px)').matches) {
+    const mobile = window.matchMedia('(max-width: 720px)').matches;
+    if (mobile) {
       if (dx < 0 && state.activeMobileDay < 4) { state.activeMobileDay++; render(); }
       else if (dx > 0 && state.activeMobileDay > 0) { state.activeMobileDay--; render(); }
-      else if (dx < 0) { state.weekStart = isoAddDays(state.weekStart, 7); refresh(); }
-      else { state.weekStart = isoAddDays(state.weekStart, -7); refresh(); }
+      else if (dx < 0) { goNext(); }
+      else { goPrev(); }
     } else {
-      if (dx < 0) { state.weekStart = isoAddDays(state.weekStart, 7); refresh(); }
-      else { state.weekStart = isoAddDays(state.weekStart, -7); refresh(); }
+      if (dx < 0) goNext(); else goPrev();
     }
   }, { passive: true });
 }
 
+function openMobileSheet() {
+  if (!elMSheet) return;
+  elMSheet.hidden = false;
+}
+function closeMobileSheet() {
+  if (elMSheet) elMSheet.hidden = true;
+}
+
 function scheduleNowTick() {
-  // Met à jour la barre bleue et les pills toutes les 60 s.
   setInterval(() => {
     state.now = new Date();
     state.today = todayIso();
-    // Repositionner uniquement la barre "now" sans tout re-render si possible.
     const nowLines = document.querySelectorAll('.now-line');
     if (nowLines.length) {
       const hoursNow = state.now.getHours() + state.now.getMinutes() / 60;
