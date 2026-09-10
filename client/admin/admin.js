@@ -258,6 +258,47 @@ function openEdit(c = null, prefill = null) {
   modal.hidden = false;
 }
 
+// Drag state pour la sélection des semaines. Les listeners sont attachés
+// UNE SEULE FOIS (voir wireWeeksGridDrag) pour éviter l'accumulation à
+// chaque re-render de la grille.
+let _weeksLastToggled = null;
+
+function chipAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  return el?.closest?.('.week-chip[data-week]');
+}
+
+function wireWeeksGridDrag() {
+  const grid = $('weeks-grid');
+  if (!grid || grid.dataset.wired === '1') return;
+  grid.dataset.wired = '1';
+
+  grid.addEventListener('pointerdown', (e) => {
+    const chip = chipAt(e.clientX, e.clientY);
+    if (!chip) return;
+    e.preventDefault();
+    const wk = chip.dataset.week;
+    state.dragging = true;
+    state.dragMode = state.weeksSelected.has(wk) ? 'remove' : 'add';
+    toggleWeek(wk, state.dragMode === 'add');
+    _weeksLastToggled = wk;
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    if (!state.dragging) return;
+    const chip = chipAt(e.clientX, e.clientY);
+    if (!chip) return;
+    const wk = chip.dataset.week;
+    if (wk === _weeksLastToggled) return;
+    _weeksLastToggled = wk;
+    toggleWeek(wk, state.dragMode === 'add');
+  });
+
+  const stopDrag = () => { state.dragging = false; state.dragMode = null; _weeksLastToggled = null; };
+  window.addEventListener('pointerup', stopDrag);
+  window.addEventListener('pointercancel', stopDrag);
+}
+
 function renderWeeksGrid() {
   const grid = $('weeks-grid');
   grid.innerHTML = state.weeks.map((w) => {
@@ -268,23 +309,9 @@ function renderWeeksGrid() {
     </div>`;
   }).join('');
 
-  const chips = grid.querySelectorAll('.week-chip');
-  chips.forEach((chip) => {
-    chip.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      const wk = chip.dataset.week;
-      state.dragging = true;
-      state.dragMode = state.weeksSelected.has(wk) ? 'remove' : 'add';
-      toggleWeek(wk, state.dragMode === 'add');
-      chip.setPointerCapture?.(e.pointerId);
-    });
-    chip.addEventListener('pointerenter', () => {
-      if (state.dragging) toggleWeek(chip.dataset.week, state.dragMode === 'add');
-    });
-  });
-  document.addEventListener('pointerup', () => { state.dragging = false; }, { once: true });
+  wireWeeksGridDrag();
 
-  // Buttons: all / none / future
+  // Boutons de sélection rapide
   grid.parentElement.querySelectorAll('button[data-weeks]').forEach((btn) => {
     btn.onclick = () => {
       const mode = btn.dataset.weeks;
