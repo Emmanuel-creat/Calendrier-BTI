@@ -242,7 +242,12 @@ function openEdit(c = null, prefill = null) {
   f.teacher.value = c?.teacher || '';
   f.room.value = c?.room || '';
   f.notes.value = c?.notes || '';
-  f.groups.value = (c?.groups || ['BTI']).join(', ');
+  // Chips de profils
+  const initialProfiles = new Set((c?.groups || ['BTI']).filter((g) => ['BTI', 'PolyTech', 'ECM', 'Clinicien'].includes(g)));
+  if (initialProfiles.size === 0) initialProfiles.add('BTI');
+  document.querySelectorAll('#edit-profile-chips .pchip').forEach((chip) => {
+    chip.classList.toggle('active', initialProfiles.has(chip.dataset.profile));
+  });
   f.dayOfWeek.value = String(prefill?.dayOfWeek || c?.dayOfWeek || 1);
   f.startTime.value = prefill?.startTime || c?.startTime || '09:00';
   f.endTime.value = prefill?.endTime || c?.endTime || '12:00';
@@ -306,13 +311,14 @@ async function saveCourse(e) {
   const f = e.target;
   const err = $('edit-error');
   err.hidden = true;
+  const chosen = [...document.querySelectorAll('#edit-profile-chips .pchip.active')].map((c) => c.dataset.profile);
   const data = {
     id: f.courseId.value,
     title: f.title.value.trim(),
     teacher: f.teacher.value.trim(),
     room: f.room.value.trim(),
     notes: f.notes.value.trim(),
-    groups: f.groups.value.split(',').map((s) => s.trim()).filter(Boolean),
+    groups: chosen.length ? chosen : ['BTI'],
     dayOfWeek: Number(f.dayOfWeek.value),
     startTime: f.startTime.value,
     endTime: f.endTime.value,
@@ -416,6 +422,11 @@ $('btn-reset').addEventListener('click', async () => {
 $('filter-week').addEventListener('change', (e) => { state.filter.week = e.target.value; renderList(); });
 $('filter-group').addEventListener('change', (e) => { state.filter.group = e.target.value; renderList(); });
 $('filter-search').addEventListener('input', (e) => { state.filter.search = e.target.value; renderList(); });
+
+// Chips profils dans la modale édition (toggle)
+document.querySelectorAll('#edit-profile-chips .pchip').forEach((chip) => {
+  chip.addEventListener('click', () => chip.classList.toggle('active'));
+});
 
 // Tabs Liste / Agenda
 document.querySelectorAll('.vtab').forEach((t) => {

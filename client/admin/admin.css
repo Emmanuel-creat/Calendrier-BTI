@@ -208,11 +208,21 @@ body {
 
 /* ─── Edit modal ─────────────────────────────────────────── */
 .modal-panel-wide { max-width: 720px; }
-.edit-form { display: flex; flex-direction: column; gap: 14px; }
-.edit-form label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
-.edit-form label span .req { color: #a6564c; }
+.edit-form { display: flex; flex-direction: column; gap: 16px; }
+.edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.edit-form label > span:first-child { color: var(--text); font-weight: 500; }
+.edit-form label span .req { color: #a6564c; margin-left: 2px; }
 .edit-form input, .edit-form select, .edit-form textarea {
-  padding: 9px 12px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-tint);
@@ -220,6 +230,14 @@ body {
   font: 14px "Inter", sans-serif;
   text-transform: none;
   letter-spacing: 0;
+  font-weight: 400;
+}
+.modal-panel h2 {
+  margin: 0 0 4px;
+  font-family: "Instrument Serif", serif;
+  font-weight: 400;
+  font-size: 22px;
+  color: var(--text);
 }
 .edit-form input:focus, .edit-form select:focus, .edit-form textarea:focus {
   outline: 2px solid var(--brand);
@@ -230,6 +248,35 @@ body {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
+}
+.edit-form label.full { grid-column: 1 / -1; }
+.profile-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.pchip {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 120ms ease;
+}
+.pchip:hover { background: var(--surface-tint); color: var(--text); }
+.pchip.active {
+  background: var(--brand);
+  color: white;
+  border-color: var(--brand);
+}
+.pchip.active::before {
+  content: '✓';
+  font-size: 12px;
+  font-weight: 700;
 }
 @media (max-width: 640px) {
   .grid-2 { grid-template-columns: 1fr; }
@@ -256,12 +303,13 @@ body {
 }
 .weeks-fieldset legend {
   padding: 0 6px;
-  font-size: 11px;
-  color: var(--text-subtle);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
 }
+.weeks-fieldset legend .hint { color: var(--text-muted); font-weight: 400; font-size: 12px; margin-left: 4px; }
 .weeks-actions { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
 .weeks-actions button {
   padding: 5px 12px;

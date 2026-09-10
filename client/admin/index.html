@@ -115,9 +115,14 @@
             <span>Salle</span>
             <input name="room" />
           </label>
-          <label>
-            <span>Groupes (séparés par ,)</span>
-            <input name="groups" placeholder="BTI, STAPS, Groupe A" />
+          <label class="full">
+            <span>Profils concernés <span class="req">*</span></span>
+            <div class="profile-chips" id="edit-profile-chips">
+              <button type="button" class="pchip" data-profile="BTI">BTI</button>
+              <button type="button" class="pchip" data-profile="PolyTech">PolyTech</button>
+              <button type="button" class="pchip" data-profile="ECM">Centrale</button>
+              <button type="button" class="pchip" data-profile="Clinicien">Clinicien</button>
+            </div>
           </label>
           <label>
             <span>Jour <span class="req">*</span></span>
@@ -140,7 +145,7 @@
         </div>
 
         <fieldset class="weeks-fieldset">
-          <legend>Semaines <span class="req">*</span> — clique / cliquer-glisser pour sélectionner</legend>
+          <legend>Semaines <span class="req">*</span><span class="hint">— clique ou fais glisser pour sélectionner</span></legend>
           <div class="weeks-actions">
             <button type="button" data-weeks="all">Toutes</button>
             <button type="button" data-weeks="none">Aucune</button>
