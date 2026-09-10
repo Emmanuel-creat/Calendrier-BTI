@@ -170,22 +170,9 @@ function generateId(c) {
   return `c_${(h >>> 0).toString(36)}`;
 }
 
-// Un profil est un des groupes exposés par /api/profiles.
-// Un cours matche un profil s'il déclare ce groupe OU s'il déclare "BTI"
-// (cours communs à toute la promo) OU si le profil est "BTI" (voit tout).
+// Un cours est visible pour un profil si son tableau `groups` contient
+// ce profil. Les événements sont taggés avec tous les profils par le parseur.
 function matchesProfile(course, profile) {
   const g = course.groups || [];
-  if (profile === 'BTI') return true;
-  if (g.includes(profile)) return true;
-  // Un cours "BTI" est commun à tous, donc visible pour tout profil de la promo.
-  if (g.includes('BTI') && !hasSpecificOrigin(g, profile)) return true;
-  return false;
-}
-
-function hasSpecificOrigin(groups, viewer) {
-  // Si un cours cible explicitement d'autres origines et NON l'origine du viewer, on cache.
-  const origins = ['STAPS', 'PolyTech', 'ECM', 'Clinicien', 'M1 BTI'];
-  const cited = origins.filter((o) => groups.includes(o));
-  if (cited.length === 0) return false;
-  return !cited.includes(viewer);
+  return g.includes(profile);
 }

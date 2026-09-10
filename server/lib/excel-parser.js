@@ -46,31 +46,24 @@ const NOISE_VALUES = new Set([
   '?', '²', '',
 ]);
 
-// Table couleur → groupes/profils, fournie par l'auteur du planning :
-//   rose   → BTI
-//   jaune  → tous cours communs (toutes formations)
+// Table couleur → profils autorisés à voir le cours. C'est la seule source
+// de vérité (le texte n'est PAS utilisé pour dériver un profil).
+//   rose   → uniquement BTI
+//   jaune  → tout le monde
 //   bleu   → PolyTech + BTI
-//   orange → ECM + BTI
-// Les autres teintes (rouge, vert) sont des marqueurs d'événements.
+//   orange → Centrale + BTI
+//   vert / rouge → événements, visibles pour tout le monde
+const ALL_PROFILES = ['BTI', 'PolyTech', 'ECM', 'Clinicien'];
 const COLOR_HINTS = {
   FFFA06B4: { label: 'Rose (BTI)',                    groups: ['BTI'] },
-  FFFFFF00: { label: 'Jaune (cours communs)',         groups: ['Commun', 'BTI', 'STAPS', 'PolyTech', 'ECM', 'Clinicien'] },
-  FFFFC000: { label: 'Jaune moutarde (cours communs)', groups: ['Commun', 'BTI', 'STAPS', 'PolyTech', 'ECM', 'Clinicien'] },
-  FF00B0F0: { label: 'Bleu (PolyTech + BTI)',         groups: ['BTI', 'PolyTech'] },
-  FFFF6600: { label: 'Orange (ECM + BTI)',            groups: ['BTI', 'ECM'] },
-  FFFF8837: { label: 'Orange soutenu (ECM + BTI)',    groups: ['BTI', 'ECM'] },
-  FF00FF99: { label: 'Vert (événement)',              groups: ['BTI'] },
-  FFFF0000: { label: 'Rouge (spécial)',               groups: ['BTI'] },
+  FFFFFF00: { label: 'Jaune (tous)',                   groups: [...ALL_PROFILES] },
+  FFFFC000: { label: 'Jaune moutarde (tous)',          groups: [...ALL_PROFILES] },
+  FF00B0F0: { label: 'Bleu (PolyTech + BTI)',          groups: ['BTI', 'PolyTech'] },
+  FFFF6600: { label: 'Orange (Centrale + BTI)',        groups: ['BTI', 'ECM'] },
+  FFFF8837: { label: 'Orange soutenu (Centrale + BTI)', groups: ['BTI', 'ECM'] },
+  FF00FF99: { label: 'Vert (événement)',               groups: [...ALL_PROFILES] },
+  FFFF0000: { label: 'Rouge (événement)',              groups: [...ALL_PROFILES] },
 };
-
-// Motifs textuels qui aident à identifier les groupes / origines / sous-groupes
-// mentionnés dans le libellé.
-const ORIGIN_PATTERNS = [
-  { re: /\bstaps\b/i,                  origin: 'STAPS' },
-  { re: /\bcentrale\b|\bECM\b/i,       origin: 'ECM' },
-  { re: /\bpolytech\b/i,               origin: 'PolyTech' },
-  { re: /\bclinic|\bclinicien/i,       origin: 'Clinicien' },
-];
 
 const SUBGROUP_PATTERNS = [
   { re: /GROUPE\s*A|Grp\s*1|Groupe\s*1/i, subgroup: 'A' },
@@ -177,39 +170,21 @@ function parseCourseContent(rawText) {
   return { title, teacher, room, notes: notes.join(' | ') };
 }
 
-function detectGroups(rawText, color) {
-  const groups = new Set();
+function detectGroups(rawText, color, special) {
+  // Événements → visibles pour tout le monde (spécifié par l'auteur du planning).
+  if (special) return [...ALL_PROFILES];
 
-  // Couleur => hint
   const hint = COLOR_HINTS[color];
-  if (hint) hint.groups.forEach((g) => groups.add(g));
+  const base = hint ? [...hint.groups] : ['BTI'];
 
-  // Origines détectées dans le texte
-  const origins = [];
-  for (const { re, origin } of ORIGIN_PATTERNS) {
-    if (re.test(rawText)) origins.push(origin);
-  }
-  origins.forEach((o) => groups.add(o));
-
-  // Sous-groupes
-  const subgroups = [];
+  // Sous-groupes A/B/C/D (les cours TP/TD sont partagés en sous-groupes).
+  const set = new Set(base);
   for (const { re, subgroup } of SUBGROUP_PATTERNS) {
-    if (re.test(rawText)) subgroups.push(`Groupe ${subgroup}`);
+    if (re.test(rawText)) set.add(`Groupe ${subgroup}`);
   }
-  subgroups.forEach((s) => groups.add(s));
-
-  // Marqueurs particuliers
-  if (/M1\s*BTI/i.test(rawText)) groups.add('M1 BTI');
-  if (/SAE\b/.test(rawText)) groups.add('SAE');
-
-  // Par défaut, tout cours identifié concerne la promo BTI si aucun groupe précis.
-  if (groups.size === 0) groups.add('BTI');
-  else if (!groups.has('BTI') && (groups.has('STAPS') || groups.has('PolyTech') || groups.has('ECM') || groups.has('Clinicien'))) {
-    // Une couleur ou un texte a précisé une origine, on garde 'BTI' comme
-    // « famille » pour cohérence avec le filtre par profil.
-    groups.add('BTI');
-  }
-  return [...groups];
+  if (/M1\s*BTI/i.test(rawText)) set.add('M1 BTI');
+  if (/\bSAE\b/.test(rawText)) set.add('SAE');
+  return [...set];
 }
 
 function isSpecialEvent(text) {
@@ -343,7 +318,7 @@ export function parseWorkbook(workbook, sheetName = '26_27_V5', options = {}) {
         const color = cellFillColor(cell);
         const special = isSpecialEvent(raw);
         const parsed = special ? { title: raw, teacher: '', room: '', notes: '' } : parseCourseContent(raw);
-        const groups = detectGroups(raw, color);
+        const groups = detectGroups(raw, color, special);
 
         const id = stableId(
           weekStart, block.dayOfWeek, startTime, endTime,
