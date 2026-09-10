@@ -27,8 +27,13 @@ const elWeekInput   = document.getElementById('week-input');
 const elPrev        = document.getElementById('prev-week');
 const elNext        = document.getElementById('next-week');
 const elToday       = document.getElementById('today-btn');
+const elRailToday   = document.getElementById('rail-today');
+const elGotoCurrent = document.getElementById('btn-goto-current');
+const elWeekSelect  = document.getElementById('btn-week-select');
+const elTodayCount  = document.getElementById('today-count');
+const elStatCount   = document.getElementById('stat-count');
+const elStatDelta   = document.getElementById('stat-delta');
 const elMeta        = document.getElementById('meta-info');
-const elPromoMeta   = document.getElementById('promo-meta');
 const elPillNow     = document.getElementById('pill-now');
 const elPillNext    = document.getElementById('pill-next');
 const elModal       = document.getElementById('course-modal');
@@ -114,9 +119,13 @@ function render() {
 }
 
 function updateMeta() {
-  const s = state.courses.length === 1 ? 'cours' : 'cours';
-  elMeta.textContent = `${state.courses.length} ${s} cette semaine`;
-  if (elPromoMeta) elPromoMeta.textContent = `Source Excel · ${state.weeksMeta.length} semaines chargées`;
+  elMeta.textContent = `${state.courses.length} cours cette semaine · ${state.weeksMeta.length} semaines chargées`;
+  if (elStatCount) elStatCount.textContent = state.courses.length;
+  if (elTodayCount) {
+    const todayCount = state.courses.filter((c) => c.date === state.today).length;
+    elTodayCount.textContent = todayCount;
+    elTodayCount.hidden = todayCount === 0;
+  }
 }
 
 function updatePills() {
@@ -148,11 +157,15 @@ function wireEvents() {
     state.weekStart = isoAddDays(state.weekStart, 7);
     refresh();
   });
-  elToday.addEventListener('click', () => {
+  const gotoToday = () => {
     state.today = todayIso();
     state.weekStart = mondayOf(new Date());
     refresh();
-  });
+  };
+  elToday.addEventListener('click', gotoToday);
+  if (elRailToday) elRailToday.addEventListener('click', gotoToday);
+  if (elGotoCurrent) elGotoCurrent.addEventListener('click', gotoToday);
+  if (elWeekSelect) elWeekSelect.addEventListener('click', () => elWeekInput.showPicker?.() || elWeekInput.focus());
   elWeekInput.addEventListener('change', () => {
     const iso = fromWeekInputValue(elWeekInput.value);
     if (iso) {
