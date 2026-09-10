@@ -295,8 +295,19 @@ body {
 .error { color: #a6564c; font-size: 13px; margin: 0; }
 
 /* ─── Weeks grid ─────────────────────────────────────────── */
+.field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  grid-column: 1 / -1;
+}
+.field-label {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
 .weeks-label { gap: 8px; }
-.weeks-label > span:first-child .hint {
+.weeks-label .hint {
   color: var(--text-muted);
   font-weight: 400;
   font-size: 12px;
