@@ -1,5 +1,6 @@
 import { get, post, put, del } from '/js/api.js';
-import { parseISO, toISO, isoAddDays, isoWeekNumber } from '/js/dates.js';
+import { parseISO, toISO, isoAddDays, isoWeekNumber, mondayOf, toWeekInputValue, fromWeekInputValue } from '/js/dates.js';
+import { renderCalendar } from '/js/calendar.js';
 
 const state = {
   courses: [],
@@ -7,10 +8,11 @@ const state = {
   groups: [],
   filter: { week: '', search: '', group: '' },
   authenticated: false,
-  // Sélection de semaines dans la modale d'édition
+  view: 'list',            // 'list' | 'agenda'
+  agendaWeek: mondayOf(new Date()),
   weeksSelected: new Set(),
   dragging: false,
-  dragMode: null, // 'add' | 'remove'
+  dragMode: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -58,6 +60,7 @@ async function loadAll() {
     (meta.overridesUpdatedAt ? ` · Dernière modif: ${new Date(meta.overridesUpdatedAt).toLocaleString('fr-FR')}` : '');
   populateFilters();
   renderList();
+  if (state.view === 'agenda') renderAgenda();
 }
 
 function populateFilters() {
@@ -68,6 +71,110 @@ function populateFilters() {
   const g = $('filter-group');
   g.innerHTML = `<option value="">Tous les groupes</option>` +
     state.groups.map((gr) => `<option value="${esc(gr)}">${esc(gr)}</option>`).join('');
+}
+
+// ─── Tabs Liste / Agenda ─────────────────────────────────
+function switchView(view) {
+  state.view = view;
+  document.querySelectorAll('.vtab').forEach((t) => t.classList.toggle('active', t.dataset.view === view));
+  $('view-list').hidden = view !== 'list';
+  document.querySelector('.admin-toolbar').hidden = view !== 'list';
+  $('view-agenda').hidden = view !== 'agenda';
+  if (view === 'agenda') renderAgenda();
+}
+
+// ─── Agenda ───────────────────────────────────────────────
+function renderAgenda() {
+  const cal = $('agenda-calendar');
+  const weekStart = state.agendaWeek;
+  const today = toISO(new Date());
+  const weekCourses = state.courses.filter((c) => c.weekStart === weekStart);
+
+  renderCalendar(cal, {
+    weekStart,
+    courses: weekCourses,
+    today,
+    now: new Date(),
+    activeMobileDay: 0,
+    onCourseClick: (c) => openEdit(c),
+  });
+
+  $('agenda-week-input').value = toWeekInputValue(weekStart);
+
+  bindAgendaDrag(cal, weekStart);
+}
+
+function bindAgendaDrag(cal, weekStart) {
+  const HOUR_HEIGHT = 58;
+  const cols = cal.querySelectorAll('.day-col');
+  cols.forEach((col, dayIndex) => {
+    let startY = null;
+    let preview = null;
+    let dayOfWeek = dayIndex + 1;
+
+    const cleanup = () => { if (preview) preview.remove(); preview = null; startY = null; };
+
+    col.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.course')) return;
+      e.preventDefault();
+      const rect = col.getBoundingClientRect();
+      startY = snapToQuarter(e.clientY - rect.top);
+      preview = document.createElement('div');
+      preview.className = 'agenda-preview';
+      preview.style.top = `${startY}px`;
+      preview.style.height = `${HOUR_HEIGHT}px`;
+      preview.textContent = formatRange(startY, startY + HOUR_HEIGHT);
+      col.appendChild(preview);
+    });
+
+    col.addEventListener('mousemove', (e) => {
+      if (startY == null || !preview) return;
+      const rect = col.getBoundingClientRect();
+      const y = snapToQuarter(e.clientY - rect.top);
+      const top = Math.max(0, Math.min(startY, y));
+      const bottom = Math.min(HOUR_HEIGHT * 10, Math.max(startY, y));
+      preview.style.top = `${top}px`;
+      preview.style.height = `${Math.max(HOUR_HEIGHT * 0.5, bottom - top)}px`;
+      preview.textContent = formatRange(top, top + Math.max(HOUR_HEIGHT * 0.5, bottom - top));
+    });
+
+    const finalize = (clientY) => {
+      if (startY == null) return;
+      const rect = col.getBoundingClientRect();
+      const y = snapToQuarter(clientY - rect.top);
+      const top = Math.max(0, Math.min(startY, y));
+      const bottom = Math.min(HOUR_HEIGHT * 10, Math.max(startY, y));
+      const height = Math.max(HOUR_HEIGHT, bottom - top);
+      cleanup();
+
+      const startHour = 8 + (top / HOUR_HEIGHT);
+      const endHour = 8 + ((top + height) / HOUR_HEIGHT);
+      openEdit(null, {
+        weekStart,
+        dayOfWeek,
+        startTime: hoursToHhmm(startHour),
+        endTime: hoursToHhmm(endHour),
+      });
+    };
+
+    col.addEventListener('mouseup', (e) => finalize(e.clientY));
+    col.addEventListener('mouseleave', () => cleanup());
+  });
+
+  function snapToQuarter(y) {
+    const q = HOUR_HEIGHT / 4;
+    return Math.round(y / q) * q;
+  }
+  function formatRange(top, bottom) {
+    return `${hoursToHhmm(8 + top / HOUR_HEIGHT)} – ${hoursToHhmm(8 + bottom / HOUR_HEIGHT)}`;
+  }
+}
+
+function hoursToHhmm(h) {
+  h = Math.max(8, Math.min(18, h));
+  const hh = Math.floor(h);
+  const mm = Math.round((h - hh) * 60);
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 
 function renderList() {
@@ -121,7 +228,7 @@ async function deleteCourse(c) {
   await loadAll();
 }
 
-function openEdit(c = null) {
+function openEdit(c = null, prefill = null) {
   const modal = $('edit-modal');
   const f = $('edit-form');
   const err = $('edit-error');
@@ -129,7 +236,6 @@ function openEdit(c = null) {
   $('edit-title').textContent = c ? 'Éditer un cours' : 'Nouveau cours';
   $('edit-delete').hidden = !c;
 
-  // Reset
   f.reset();
   f.courseId.value = c?.id || '';
   f.title.value = c?.title || '';
@@ -137,11 +243,12 @@ function openEdit(c = null) {
   f.room.value = c?.room || '';
   f.notes.value = c?.notes || '';
   f.groups.value = (c?.groups || ['BTI']).join(', ');
-  f.dayOfWeek.value = String(c?.dayOfWeek || 1);
-  f.startTime.value = c?.startTime || '09:00';
-  f.endTime.value = c?.endTime || '12:00';
+  f.dayOfWeek.value = String(prefill?.dayOfWeek || c?.dayOfWeek || 1);
+  f.startTime.value = prefill?.startTime || c?.startTime || '09:00';
+  f.endTime.value = prefill?.endTime || c?.endTime || '12:00';
 
-  state.weeksSelected = new Set(c ? [c.weekStart] : [state.weeks[0]?.weekStart].filter(Boolean));
+  const initialWeek = prefill?.weekStart || c?.weekStart || state.weeks[0]?.weekStart;
+  state.weeksSelected = new Set(initialWeek ? [initialWeek] : []);
   renderWeeksGrid();
   modal.hidden = false;
 }
@@ -309,6 +416,20 @@ $('btn-reset').addEventListener('click', async () => {
 $('filter-week').addEventListener('change', (e) => { state.filter.week = e.target.value; renderList(); });
 $('filter-group').addEventListener('change', (e) => { state.filter.group = e.target.value; renderList(); });
 $('filter-search').addEventListener('input', (e) => { state.filter.search = e.target.value; renderList(); });
+
+// Tabs Liste / Agenda
+document.querySelectorAll('.vtab').forEach((t) => {
+  t.addEventListener('click', () => switchView(t.dataset.view));
+});
+
+// Contrôles agenda
+$('agenda-prev').addEventListener('click', () => { state.agendaWeek = isoAddDays(state.agendaWeek, -7); renderAgenda(); });
+$('agenda-next').addEventListener('click', () => { state.agendaWeek = isoAddDays(state.agendaWeek, 7); renderAgenda(); });
+$('agenda-today').addEventListener('click', () => { state.agendaWeek = mondayOf(new Date()); renderAgenda(); });
+$('agenda-week-input').addEventListener('change', (e) => {
+  const iso = fromWeekInputValue(e.target.value);
+  if (iso) { state.agendaWeek = iso; renderAgenda(); }
+});
 
 document.addEventListener('click', (e) => {
   const t = e.target;
