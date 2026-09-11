@@ -14,6 +14,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(root, 'data');
 const EXCEL_PATH = process.env.EXCEL_PATH || path.join(root, 'data', 'planning.xlsx');
 const CACHE_PATH = process.env.CACHE_PATH || path.join(DATA_DIR, 'planning-cache.json');
 const OVERRIDES_PATH = process.env.OVERRIDES_PATH || path.join(DATA_DIR, 'overrides.json');
+const ADE_PATH = process.env.ADE_PATH || path.join(root, 'data', 'ade-cal.vcs');
 // Si non défini, le parseur choisira automatiquement la feuille "V<N>" la
 // plus élevée du fichier — utile quand l'Excel amont ajoute une révision.
 const EXCEL_SHEET = process.env.EXCEL_SHEET || undefined;
@@ -36,6 +37,7 @@ const store = new PlanningStore({
   excelPath: EXCEL_PATH,
   cachePath: CACHE_PATH,
   overridesPath: OVERRIDES_PATH,
+  adePath: ADE_PATH,
   sheetName: EXCEL_SHEET,
   shiftDays: process.env.EXCEL_SHIFT_DAYS != null ? Number(process.env.EXCEL_SHIFT_DAYS) : undefined,
 });

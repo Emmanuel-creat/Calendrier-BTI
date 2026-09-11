@@ -14,23 +14,39 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { parseExcelFile } from './excel-parser.js';
+import { loadAdeIndex, findAdeRoom, isGenericFssRoom } from './ade-parser.js';
 
 export class PlanningStore {
-  constructor({ excelPath, cachePath, overridesPath, sheetName = '26_27_V5', shiftDays } = {}) {
+  constructor({ excelPath, cachePath, overridesPath, adePath, sheetName = '26_27_V5', shiftDays } = {}) {
     this.excelPath = excelPath;
     this.cachePath = cachePath;
     this.overridesPath = overridesPath;
+    this.adePath = adePath;
     this.sheetName = sheetName;
     this.shiftDays = Number.isFinite(shiftDays) ? shiftDays : 364;
+    this.adeIndex = new Map();
     this.base = null;      // { courses, weeks, warnings, parsedAt }
     this.overrides = { ops: [], updatedAt: null };
     this.cache = null;     // Cours effectif (base + overrides appliqués)
   }
 
   async init() {
+    await this.loadAde();
     await this.loadCache();
     await this.loadOverrides();
     this.rebuild();
+  }
+
+  async loadAde() {
+    if (!this.adePath) return;
+    try {
+      const { index } = await loadAdeIndex(this.adePath);
+      this.adeIndex = index;
+      console.log(`[ade] ${index.size} événements ADE indexés depuis ${this.adePath}`);
+    } catch (err) {
+      console.warn(`[ade] impossible de charger ${this.adePath}:`, err.message);
+      this.adeIndex = new Map();
+    }
   }
 
   async loadCache() {
@@ -94,12 +110,25 @@ export class PlanningStore {
         byId.set(op.course.id, { ...op.course, origin: 'admin' });
       }
     }
+    // Enrichissement ADE : si un cours a une salle générique "FSS…", on
+    // remplace par la salle précise trouvée dans ADECal.vcs (si dispo).
+    let adeHits = 0;
+    for (const [id, c] of byId) {
+      if (!isGenericFssRoom(c.room)) continue;
+      const hit = findAdeRoom(this.adeIndex, c.date, c.startTime, c.room);
+      if (!hit) continue;
+      byId.set(id, { ...c, room: hit.location, roomSource: 'ade', roomFromExcel: c.room });
+      adeHits++;
+    }
+    if (adeHits) console.log(`[ade] ${adeHits} salles précisées depuis l'ADE`);
     this.cache = {
       parsedAt: this.base.parsedAt,
       overridesUpdatedAt: this.overrides.updatedAt,
       sheetName: this.base.sheetName,
       courses: [...byId.values()].sort(sortCourses),
       weeks: this.deriveWeeks(byId),
+      adeCount: this.adeIndex?.size || 0,
+      adeMatches: adeHits,
     };
   }
 
