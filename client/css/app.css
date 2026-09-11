@@ -410,6 +410,15 @@ input, select, textarea { font: inherit; color: inherit; }
   text-align: right;
   font-weight: 500;
 }
+.hour-rail-end {
+  height: 14px;
+  font-size: 10px;
+  color: var(--ink-subtle);
+  padding: 0 6px;
+  text-align: right;
+  font-weight: 500;
+  margin-top: -8px;
+}
 
 .day-col {
   position: relative;

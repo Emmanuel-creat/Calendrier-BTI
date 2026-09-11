@@ -75,6 +75,10 @@ export function renderCalendar(container, {
     slot.textContent = `${h}h`;
     rail.appendChild(slot);
   }
+  // Marqueur final « 18h » (fin de la dernière plage horaire).
+  const endMark = el('div', { class: 'hour-rail-end' });
+  endMark.textContent = `${GRID_END_HOUR}h`;
+  rail.appendChild(endMark);
   container.appendChild(rail);
 
   // Colonnes jours
