@@ -352,11 +352,10 @@ input, select, textarea { font: inherit; color: inherit; }
   display: grid;
   grid-template-columns: 48px repeat(5, minmax(120px, 1fr));
   border-radius: 16px;
-  overflow: hidden;
   background: rgba(255,255,255,0.7);
   position: relative;
-  flex: 1;
-  min-height: 0;
+  /* Pas de flex: 1 ici : la grille prend sa hauteur naturelle
+     (10 lignes × --hour-height) et laisse #calendar-wrap défiler. */
 }
 
 .day-header {
