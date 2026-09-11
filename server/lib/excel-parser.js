@@ -385,8 +385,20 @@ function addIsoDays(iso, n) {
   return d.toISOString().slice(0, 10);
 }
 
-export async function parseExcelFile(filePath, sheetName = '26_27_V5', options = {}) {
+// Choisit automatiquement la feuille la plus « avancée » du classeur :
+// on cherche celle dont le nom finit par V<N> avec le plus grand N.
+export function pickLatestSheet(workbook) {
+  const sheets = workbook.worksheets.map((w) => w.name);
+  const versioned = sheets
+    .map((n) => ({ name: n, v: /_V(\d+)$/i.exec(n)?.[1] }))
+    .filter((s) => s.v != null)
+    .sort((a, b) => Number(b.v) - Number(a.v));
+  return versioned[0]?.name || sheets[0];
+}
+
+export async function parseExcelFile(filePath, sheetName, options = {}) {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(filePath);
-  return parseWorkbook(wb, sheetName, options);
+  const target = sheetName || pickLatestSheet(wb);
+  return parseWorkbook(wb, target, options);
 }

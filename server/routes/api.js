@@ -1,7 +1,7 @@
 import express from 'express';
 import { requireAdmin, verifyPassword, issueToken, revokeToken, checkToken } from '../lib/auth.js';
 
-export function apiRoutes(store) {
+export function apiRoutes(store, { syncAndRebuild } = {}) {
   const router = express.Router();
 
   // ─── Lecture publique ────────────────────────────────────────────────
@@ -113,6 +113,12 @@ export function apiRoutes(store) {
   router.post('/admin/reimport', requireAdmin, async (_req, res) => {
     await store.reimportFromExcel();
     res.json({ ok: true, meta: store.meta() });
+  });
+
+  router.post('/admin/sync', requireAdmin, async (_req, res) => {
+    if (!syncAndRebuild) return res.status(501).json({ error: 'sync-disabled' });
+    const result = await syncAndRebuild();
+    res.json({ ok: true, result, meta: store.meta() });
   });
 
   router.get('/admin/diff', requireAdmin, (_req, res) => {

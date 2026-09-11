@@ -3,6 +3,7 @@ node_modules/
 .env.local
 data/overrides.json
 data/planning-cache.json
+data/remote-sync.json
 *.log
 .DS_Store
 .vscode/

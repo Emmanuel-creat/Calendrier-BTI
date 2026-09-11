@@ -545,6 +545,13 @@ $('login-form').addEventListener('submit', (e) => { e.preventDefault(); login($(
 $('btn-logout').addEventListener('click', logout);
 $('btn-new-course').addEventListener('click', () => openEdit());
 $('btn-diff').addEventListener('click', showDiff);
+$('btn-sync').addEventListener('click', async () => {
+  const r = await post('/api/admin/sync');
+  alert(r.result?.updated
+    ? `Synchro OK : ${r.result.file}\n${r.result.size} B\n${r.result.lastModified || ''}`
+    : `Aucune mise à jour (${r.result?.reason || 'inconnu'}).`);
+  await loadAll();
+});
 $('btn-reimport').addEventListener('click', async () => {
   if (!confirm('Recharger complètement l’Excel ? Les overrides restent.')) return;
   await post('/api/admin/reimport');
