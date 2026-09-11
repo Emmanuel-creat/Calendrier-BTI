@@ -105,7 +105,7 @@ input, select, textarea { font: inherit; color: inherit; }
   flex-direction: column;
   gap: 14px;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .sidebar-header {
