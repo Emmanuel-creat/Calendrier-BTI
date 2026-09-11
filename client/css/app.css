@@ -337,7 +337,17 @@ input, select, textarea { font: inherit; color: inherit; }
   display: flex;
   flex-direction: column;
 }
-#calendar-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#calendar-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge legacy */
+}
+#calendar-wrap::-webkit-scrollbar { display: none; }
 .calendar {
   display: grid;
   grid-template-columns: 48px repeat(5, minmax(120px, 1fr));
@@ -358,8 +368,11 @@ input, select, textarea { font: inherit; color: inherit; }
   text-transform: uppercase;
   letter-spacing: 0.08em;
   border-bottom: 1px solid var(--border);
-  background: rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.75);
   backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
 .day-header strong {
   display: block;
@@ -377,8 +390,11 @@ input, select, textarea { font: inherit; color: inherit; }
 .hour-rail-header {
   border-bottom: 1px solid var(--border);
   border-right: 1px solid var(--border);
-  background: rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.75);
   backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
 
 .hour-rail {
