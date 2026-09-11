@@ -24,6 +24,14 @@ const SYNC_INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MS || 30 * 60 * 1000);
 const SYNC_ENABLED = process.env.REMOTE_SYNC !== '0';
 const SYNC_STATE_PATH = path.join(DATA_DIR, 'remote-sync.json');
 
+// État courant du fichier distant, exposé via /api/meta.
+const remoteState = {
+  fileName: null,
+  href: null,
+  lastModified: null,
+  syncedAt: null,
+};
+
 const store = new PlanningStore({
   excelPath: EXCEL_PATH,
   cachePath: CACHE_PATH,
@@ -39,6 +47,12 @@ async function syncAndRebuild() {
       targetPath: EXCEL_PATH,
       stateFile: SYNC_STATE_PATH,
     });
+    if (res.file) {
+      remoteState.href = res.file;
+      remoteState.fileName = res.file.split('/').pop();
+      remoteState.lastModified = res.lastModified?.toISOString?.() || null;
+      remoteState.syncedAt = new Date().toISOString();
+    }
     if (res.updated) {
       console.log(`[sync] nouvel Excel récupéré : ${res.file} (${res.size} B, ${res.lastModified?.toISOString?.() || '—'})`);
       await store.reimportFromExcel();
@@ -52,8 +66,22 @@ async function syncAndRebuild() {
   }
 }
 
-// Synchro initiale AVANT le init pour partir sur la version distante si
-// possible ; en cas d'échec on retombe sur le fichier local existant.
+async function loadRemoteStateFromDisk() {
+  try {
+    const raw = await import('node:fs/promises').then((m) => m.readFile(SYNC_STATE_PATH, 'utf8'));
+    const j = JSON.parse(raw);
+    if (j.href) {
+      remoteState.href = j.href;
+      remoteState.fileName = j.href.split('/').pop();
+    }
+    if (j.lastModified) remoteState.lastModified = j.lastModified;
+    if (j.syncedAt) remoteState.syncedAt = j.syncedAt;
+  } catch { /* ignore */ }
+}
+
+// Charge l'état précédent (nom du fichier + dernière synchro) puis fait
+// un check distant. En cas d'échec on retombe sur le fichier local existant.
+await loadRemoteStateFromDisk();
 if (SYNC_ENABLED) {
   await syncAndRebuild();
 }
@@ -68,7 +96,7 @@ const app = express();
 app.disable('x-powered-by');
 app.use(cookieParser());
 
-app.use('/api', apiRoutes(store, { syncAndRebuild }));
+app.use('/api', apiRoutes(store, { syncAndRebuild, remoteState }));
 
 // Interface constructeur (URL non annoncée dans l'UI publique).
 app.use('/constructeur', express.static(path.join(root, 'client', 'admin')));

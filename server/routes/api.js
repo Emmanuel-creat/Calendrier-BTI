@@ -1,12 +1,12 @@
 import express from 'express';
 import { requireAdmin, verifyPassword, issueToken, revokeToken, checkToken } from '../lib/auth.js';
 
-export function apiRoutes(store, { syncAndRebuild } = {}) {
+export function apiRoutes(store, { syncAndRebuild, remoteState } = {}) {
   const router = express.Router();
 
   // ─── Lecture publique ────────────────────────────────────────────────
   router.get('/meta', (_req, res) => {
-    res.json(store.meta());
+    res.json({ ...store.meta(), remote: remoteState || null });
   });
 
   router.get('/weeks', (_req, res) => {

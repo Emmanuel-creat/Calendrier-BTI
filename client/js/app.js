@@ -56,10 +56,25 @@ elCalendarWrap.insertBefore(elMobileTabs, elCalendar);
 // ─── Bootstrap ───────────────────────────────────────────────
 (async function init() {
   await refresh();
+  await loadMeta();
   wireEvents();
   renderProfileButtons();
   scheduleNowTick();
 })();
+
+async function loadMeta() {
+  try {
+    const meta = await get('/api/meta');
+    const el = document.getElementById('source-file');
+    if (el && meta?.remote?.fileName) {
+      el.textContent = `source : ${meta.remote.fileName}`;
+      if (meta.remote.syncedAt) {
+        const d = new Date(meta.remote.syncedAt);
+        el.title = `Synchronisé depuis AMU box le ${d.toLocaleString('fr-FR')}`;
+      }
+    }
+  } catch { /* ignore */ }
+}
 
 async function refresh() {
   const { courses } = await get(
