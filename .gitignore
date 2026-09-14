@@ -4,6 +4,7 @@ node_modules/
 data/overrides.json
 data/planning-cache.json
 data/remote-sync.json
+data/ade-sync.json
 *.log
 .DS_Store
 .vscode/

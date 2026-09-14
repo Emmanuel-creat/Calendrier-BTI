@@ -13,6 +13,11 @@ import https from 'node:https';
 // URL par défaut vers le partage AMU Box du planning M2 BTI.
 export const DEFAULT_REMOTE_URL = 'https://amubox.univ-amu.fr/s/ZFKYA7bMk6a9dbr';
 
+// URL par défaut de l'export iCal ADE (accès anonyme via token embarqué).
+export const DEFAULT_ADE_URL =
+  'https://agenda-web-consult.univ-amu.fr/jsp/custom/modules/plannings/anonymous_cal.jsp'
+  + '?projectId=8&resources=2967&calType=ical&firstDate=2026-08-17&lastDate=2027-08-15';
+
 function parsePublicShareUrl(shareUrl) {
   // Convertit `https://host/s/TOKEN` (page HTML) en endpoint WebDAV public
   // Nextcloud : `https://host/public.php/dav/files/TOKEN/`.
@@ -140,4 +145,48 @@ export async function syncRemoteExcel({ shareUrl = DEFAULT_REMOTE_URL, targetPat
   }
 
   return { updated: true, file: latest.href, size: body.length, lastModified: latest.lastModified };
+}
+
+// Télécharge le flux iCal ADE en direct et le sauvegarde sur disque.
+// Retourne { updated, size } ; updated=false si le contenu est identique
+// à la version précédente (comparaison par taille + hash court).
+export async function syncAdeCalendar({ url = DEFAULT_ADE_URL, targetPath, stateFile } = {}) {
+  const res = await httpRequest(url);
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`GET ${url} → HTTP ${res.status}`);
+  }
+  const body = res.body;
+  // ADE renvoie un DTSTAMP différent à chaque appel (moment de la génération),
+  // même si le contenu du planning n'a pas changé. On hash le corps privé
+  // de ces lignes pour détecter les vrais changements uniquement.
+  const stripped = body.toString('utf8').replace(/^DTSTAMP:[^\r\n]+\r?\n/gm, '');
+  const hash = simpleHash(Buffer.from(stripped));
+
+  let previous = null;
+  if (stateFile) {
+    try { previous = JSON.parse(await fs.readFile(stateFile, 'utf8')); }
+    catch { previous = null; }
+  }
+  if (previous?.hash === hash) {
+    return { updated: false, reason: 'unchanged', size: body.length };
+  }
+
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.writeFile(targetPath, body);
+
+  if (stateFile) {
+    await fs.writeFile(stateFile, JSON.stringify({
+      size: body.length,
+      hash,
+      syncedAt: new Date().toISOString(),
+    }, null, 2));
+  }
+  return { updated: true, size: body.length };
+}
+
+function simpleHash(buf) {
+  // Hash 32-bit rapide (djb2), suffisant pour détecter un changement.
+  let h = 5381;
+  for (let i = 0; i < buf.length; i++) h = ((h << 5) + h) ^ buf[i];
+  return (h >>> 0).toString(36);
 }

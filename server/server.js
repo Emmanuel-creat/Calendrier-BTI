@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PlanningStore } from './lib/store.js';
 import { apiRoutes } from './routes/api.js';
-import { syncRemoteExcel, DEFAULT_REMOTE_URL } from './lib/remote-sync.js';
+import { syncRemoteExcel, syncAdeCalendar, DEFAULT_REMOTE_URL, DEFAULT_ADE_URL } from './lib/remote-sync.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -19,11 +19,13 @@ const ADE_PATH = process.env.ADE_PATH || path.join(root, 'data', 'ade-cal.vcs');
 // plus élevée du fichier — utile quand l'Excel amont ajoute une révision.
 const EXCEL_SHEET = process.env.EXCEL_SHEET || undefined;
 
-// Auto-sync avec le partage public AMU Box.
+// Auto-sync avec le partage public AMU Box + le flux iCal ADE.
 const REMOTE_URL = process.env.REMOTE_URL || DEFAULT_REMOTE_URL;
+const ADE_URL = process.env.ADE_URL || DEFAULT_ADE_URL;
 const SYNC_INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MS || 30 * 60 * 1000);
 const SYNC_ENABLED = process.env.REMOTE_SYNC !== '0';
 const SYNC_STATE_PATH = path.join(DATA_DIR, 'remote-sync.json');
+const ADE_SYNC_STATE_PATH = path.join(DATA_DIR, 'ade-sync.json');
 
 // État courant du fichier distant, exposé via /api/meta.
 const remoteState = {
@@ -43,12 +45,15 @@ const store = new PlanningStore({
 });
 
 async function syncAndRebuild() {
+  const result = { excel: null, ade: null };
+  // 1) Excel amont (AMU Box)
   try {
     const res = await syncRemoteExcel({
       shareUrl: REMOTE_URL,
       targetPath: EXCEL_PATH,
       stateFile: SYNC_STATE_PATH,
     });
+    result.excel = res;
     if (res.file) {
       remoteState.href = res.file;
       remoteState.fileName = res.file.split('/').pop();
@@ -59,13 +64,33 @@ async function syncAndRebuild() {
       console.log(`[sync] nouvel Excel récupéré : ${res.file} (${res.size} B, ${res.lastModified?.toISOString?.() || '—'})`);
       await store.reimportFromExcel();
     } else {
-      console.log(`[sync] à jour (${res.reason})`);
+      console.log(`[sync] Excel à jour (${res.reason})`);
     }
-    return res;
   } catch (err) {
-    console.error(`[sync] erreur :`, err.message);
-    return { updated: false, error: err.message };
+    console.error(`[sync] Excel erreur :`, err.message);
+    result.excel = { updated: false, error: err.message };
   }
+
+  // 2) Flux iCal ADE (salles précises en direct)
+  try {
+    const res = await syncAdeCalendar({
+      url: ADE_URL,
+      targetPath: ADE_PATH,
+      stateFile: ADE_SYNC_STATE_PATH,
+    });
+    result.ade = res;
+    if (res.updated) {
+      console.log(`[sync] nouvel ADE récupéré (${res.size} B)`);
+      await store.loadAde();
+      store.rebuild();
+    } else {
+      console.log(`[sync] ADE à jour (${res.reason})`);
+    }
+  } catch (err) {
+    console.error(`[sync] ADE erreur :`, err.message);
+    result.ade = { updated: false, error: err.message };
+  }
+  return result;
 }
 
 async function loadRemoteStateFromDisk() {
