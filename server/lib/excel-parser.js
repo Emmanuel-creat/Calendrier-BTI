@@ -131,6 +131,11 @@ function splitTeacherRoom(segment) {
   return null;
 }
 
+// Étiquettes qui NE sont pas des noms de professeur : "SAE Xxxx",
+// "EVAL Xxxx", "TP Xxxx"… Elles arrivent souvent entre le titre et le
+// vrai prof. On les route en notes (et le vrai prof pourra prendre le champ).
+const NOT_A_TEACHER = /^\s*(?:SAE|EVAL|TP|TD|CM|SUIVI)\b/i;
+
 function parseCourseContent(rawText) {
   const parts = splitFields(rawText);
   if (!parts.length) {
@@ -153,7 +158,7 @@ function parseCourseContent(rawText) {
     // Un segment "Prof (Salle)" combiné
     const tr = splitTeacherRoom(part);
     if (tr) {
-      if (!teacher) teacher = tr.teacher;
+      if (!teacher && !NOT_A_TEACHER.test(tr.teacher)) teacher = tr.teacher;
       else notes.push(tr.teacher);
       if (!room) room = tr.room;
       else notes.push(`(${tr.room})`);
@@ -162,6 +167,11 @@ function parseCourseContent(rawText) {
     // Détection heuristique de salle
     if (!room && ROOM_HINT.test(part)) {
       room = part.trim();
+      continue;
+    }
+    // Étiquette "SAE / EVAL / …" : NE remplit PAS le champ teacher.
+    if (NOT_A_TEACHER.test(part)) {
+      notes.push(part);
       continue;
     }
     // Sinon, considérons ça comme un prof/complément
