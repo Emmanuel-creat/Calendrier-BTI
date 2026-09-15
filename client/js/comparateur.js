@@ -116,21 +116,64 @@ function normalizeText(s) {
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
-function normalizeTeacher(s) {
-  // "TAILLEBOT Virginie" vs "Virginie TAILLEBOT" → même
-  return normalizeText(s).split(' ').filter(Boolean).sort().join(' ');
+
+// Mots à ignorer complètement dans la comparaison.
+const STOP_WORDS = new Set([
+  'et', '&', 'de', 'du', 'des', 'la', 'le', 'les', 'l', 'd', 'a', 'au', 'aux',
+  'en', 'pour', 'par', 'un', 'une', 'sur', 'sous', 'avec', 'sans',
+]);
+const HONORIFICS = new Set([
+  'm', 'mr', 'mme', 'me', 'mlle', 'dr', 'pr', 'prof',
+  'monsieur', 'madame', 'mademoiselle', 'docteur', 'professeur',
+]);
+
+function significantWords(s, drop = STOP_WORDS) {
+  return normalizeText(s).split(' ').filter((w) => w.length >= 2 && !drop.has(w));
 }
-function jaccard(a, b) {
-  const na = normalizeText(a);
-  const nb = normalizeText(b);
-  if (!na || !nb) return 0;
-  if (na === nb) return 1;
-  const wa = new Set(na.split(' ').filter(Boolean));
-  const wb = new Set(nb.split(' ').filter(Boolean));
-  const inter = [...wa].filter((w) => wb.has(w)).length;
-  const union = new Set([...wa, ...wb]).size;
-  return union === 0 ? 0 : inter / union;
+
+// Deux mots sont "proches" si :
+//   - identiques
+//   - ils partagent 4 premiers caractères (Virgile / Virgil / Virgilio)
+//   - ou l'un est préfixe de l'autre avec au moins 3 caractères communs
+function wordsClose(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.length >= 4 && b.length >= 4 && a.slice(0, 4) === b.slice(0, 4)) return true;
+  if (a.length >= 3 && b.length >= 3 && (a.startsWith(b) || b.startsWith(a))) return true;
+  return false;
 }
+
+// Un titre "match" un autre si tous les mots significatifs du plus court
+// se retrouvent (proches) dans l'autre.
+function titlesMatch(a, b) {
+  const wa = significantWords(a);
+  const wb = significantWords(b);
+  if (!wa.length || !wb.length) return true;
+  const [short, long] = wa.length <= wb.length ? [wa, wb] : [wb, wa];
+  return short.every((w) => long.some((x) => wordsClose(w, x)));
+}
+
+// Deux enseignants "matchent" si, après retrait des civilités, il existe
+// au moins un mot proche entre les deux listes (le nom de famille est
+// suffisant : "M PONCIN" == "Virgile PONCIN" == "PONCIN Virgil").
+function teachersMatch(a, b) {
+  const wa = significantWords(a, new Set([...STOP_WORDS, ...HONORIFICS]));
+  const wb = significantWords(b, new Set([...STOP_WORDS, ...HONORIFICS]));
+  if (!wa.length || !wb.length) return true;
+  return wa.some((w) => wb.some((x) => wordsClose(w, x)));
+}
+
+// Score de similarité asymétrique pour l'appariement Excel↔ADE.
+// Utilisé uniquement pour choisir la meilleure paire (pas pour flagger).
+function pairScore(titleA, titleB) {
+  const wa = significantWords(titleA);
+  const wb = significantWords(titleB);
+  if (!wa.length || !wb.length) return 0;
+  let matches = 0;
+  for (const w of wa) if (wb.some((x) => wordsClose(w, x))) matches++;
+  return matches / Math.max(wa.length, wb.length);
+}
+
 function timeToMin(t) {
   if (!t) return NaN;
   const [h, m] = t.split(':').map(Number);
@@ -143,11 +186,12 @@ function analyseDay(day) {
   const excel = day.excel.map((c, i) => ({ ...c, _key: 'e'+i, matched: null }));
   const ade = day.ade.map((c, i) => ({ ...c, _key: 'a'+i, matched: null }));
 
-  // Appariement par similarité de titre + chevauchement horaire.
+  // Appariement par similarité de titre (permissive) + bonus si les
+  // horaires se chevauchent.
   const pairs = [];
   for (const e of excel) for (const a of ade) {
-    const sim = jaccard(e.title, a.title);
-    if (sim < 0.4) continue;
+    const sim = pairScore(e.title, a.title);
+    if (sim < 0.3) continue;
     const eS = timeToMin(e.startTime), eE = timeToMin(e.endTime);
     const aS = timeToMin(a.startTime), aE = timeToMin(a.endTime);
     const overlap = !isNaN(eS) && !isNaN(aS) && Math.min(eE, aE) > Math.max(eS, aS);
@@ -175,9 +219,8 @@ function analyseDay(day) {
     } else {
       const reasons = [];
       if (f.horaires && (e.startTime !== e.matched.startTime || e.endTime !== e.matched.endTime)) reasons.push('horaires');
-      if (f.matieres && jaccard(e.title, e.matched.title) < 0.95) reasons.push('matières');
-      if (f.prof && (e.teacher || e.matched.teacher) &&
-          normalizeTeacher(e.teacher) !== normalizeTeacher(e.matched.teacher)) reasons.push('prof');
+      if (f.matieres && !titlesMatch(e.title, e.matched.title)) reasons.push('matières');
+      if (f.prof && !teachersMatch(e.teacher, e.matched.teacher)) reasons.push('prof');
       const isDiff = reasons.length > 0;
       if (isDiff) diffCount++;
       items.push({ kind: 'pair', excel: e, ade: e.matched, isDiff, reasons });
