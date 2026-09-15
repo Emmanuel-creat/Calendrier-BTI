@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- Corps du calendrier : blanc cassé du site, léger dégradé pour la 3D -->
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fbfaf6"/>
+      <stop offset="100%" stop-color="#d8d6d0"/>
+    </linearGradient>
+    <linearGradient id="bodyEdge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e6e3dc"/>
+      <stop offset="100%" stop-color="#a5a29b"/>
+    </linearGradient>
+
+    <!-- Entête sombre (charbon de la charte) -->
+    <linearGradient id="header" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a3b3d"/>
+      <stop offset="100%" stop-color="#1a1b1c"/>
+    </linearGradient>
+
+    <!-- Anneaux du binder -->
+    <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6b6c6f"/>
+      <stop offset="100%" stop-color="#2b2c2e"/>
+    </linearGradient>
+
+    <!-- Cellules : très léger creux -->
+    <linearGradient id="cell" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e0ded7"/>
+      <stop offset="100%" stop-color="#f4f2ec"/>
+    </linearGradient>
+
+    <!-- Reflet lumineux en haut du corps -->
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Ombre portée douce sous le calendrier -->
+    <filter id="drop" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="10"/>
+      <feOffset dx="0" dy="10" result="off"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <g filter="url(#drop)">
+    <!-- Corps du calendrier (contour + fill) -->
+    <rect x="66" y="112" width="380" height="336" rx="46" fill="url(#bodyEdge)"/>
+    <rect x="72" y="118" width="368" height="324" rx="42" fill="url(#body)"/>
+
+    <!-- Entête sombre -->
+    <path d="M 72 160 Q 72 118 114 118 L 398 118 Q 440 118 440 160 L 440 194 L 72 194 Z" fill="url(#header)"/>
+
+    <!-- Reflet subtil sur le corps -->
+    <rect x="80" y="200" width="352" height="80" rx="12" fill="url(#gloss)"/>
+
+    <!-- Anneaux du binder (2 tiges qui traversent l'entête) -->
+    <g>
+      <rect x="176" y="66" width="28" height="88" rx="14" fill="url(#ring)"/>
+      <rect x="308" y="66" width="28" height="88" rx="14" fill="url(#ring)"/>
+      <!-- Points de fixation intérieurs -->
+      <circle cx="190" cy="76" r="6" fill="#f6f5f1" opacity="0.35"/>
+      <circle cx="322" cy="76" r="6" fill="#f6f5f1" opacity="0.35"/>
+    </g>
+
+    <!-- Grille 4×3 de cellules (12 carrés) -->
+    <g>
+      <!-- Ligne 1 -->
+      <rect x="102" y="232" width="66" height="52" rx="14" fill="url(#cell)"/>
+      <rect x="178" y="232" width="66" height="52" rx="14" fill="url(#cell)"/>
+      <rect x="254" y="232" width="66" height="52" rx="14" fill="url(#cell)"/>
+      <rect x="330" y="232" width="66" height="52" rx="14" fill="url(#cell)"/>
+      <!-- Ligne 2 -->
+      <rect x="102" y="298" width="66" height="52" rx="14" fill="url(#cell)"/>
+      <rect x="178" y="298" width="66" height="52" rx="14" fill="url(#cell)"/>
+      <rect x="254" y="298" width="66" height="52" rx="14" fill="url(#cell)"/>
+      <rect x="330" y="298" width="66" height="52" rx="14" fill="url(#cell)"/>
+      <!-- Ligne 3 -->
+      <rect x="102" y="364" width="66" height="52" rx="14" fill="url(#cell)"/>
+      <rect x="178" y="364" width="66" height="52" rx="14" fill="url(#cell)"/>
+      <rect x="254" y="364" width="66" height="52" rx="14" fill="url(#cell)"/>
+      <rect x="330" y="364" width="66" height="52" rx="14" fill="url(#cell)"/>
+
+      <!-- Cellule accent (aujourd'hui) : vert olive de la charte -->
+      <rect x="178" y="298" width="66" height="52" rx="14" fill="#6bb28b"/>
+      <!-- Léger reflet blanc en haut de la cellule accent -->
+      <rect x="184" y="304" width="54" height="14" rx="7" fill="#ffffff" opacity="0.28"/>
+    </g>
+  </g>
+</svg>
