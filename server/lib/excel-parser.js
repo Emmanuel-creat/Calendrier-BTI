@@ -159,10 +159,17 @@ function parseCourseContent(rawText) {
     return { title: '', teacher: '', room: '', notes: '' };
   }
 
+  const notes = [];
+  // Si le PREMIER segment est une étiquette SAE / EVAL / TP / TD / CM / SUIVI,
+  // ce n'est pas le titre mais un tag. On le met en notes et on regarde
+  // le segment suivant pour le titre.
+  while (parts.length && NOT_A_TEACHER.test(parts[0])) {
+    notes.push(parts.shift());
+  }
+
   let title = parts.shift() || '';
   let teacher = '';
   let room = '';
-  const notes = [];
 
   for (const part of parts) {
     // Un segment qui est "(quelque chose)" est une salle
