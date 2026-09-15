@@ -14,7 +14,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { parseExcelFile } from './excel-parser.js';
-import { loadAdeIndex, findAdeRoom, isGenericFssRoom } from './ade-parser.js';
+import { loadAdeIndex, findAdeRoom, isGenericFssRoom, extractSurname, looksAbbreviated } from './ade-parser.js';
 
 export class PlanningStore {
   constructor({ excelPath, cachePath, overridesPath, adePath, sheetName = '26_27_V5', shiftDays } = {}) {
@@ -40,14 +40,16 @@ export class PlanningStore {
   async loadAde() {
     if (!this.adePath) return;
     try {
-      const { index, normalized } = await loadAdeIndex(this.adePath);
+      const { index, normalized, teacherLexicon } = await loadAdeIndex(this.adePath);
       this.adeIndex = index;
       this.adeEvents = normalized || [];
-      console.log(`[ade] ${index.size} événements ADE indexés depuis ${this.adePath}`);
+      this.teacherLexicon = teacherLexicon || new Map();
+      console.log(`[ade] ${index.size} événements ADE indexés depuis ${this.adePath} · lexique ${this.teacherLexicon.size} prof(s)`);
     } catch (err) {
       console.warn(`[ade] impossible de charger ${this.adePath}:`, err.message);
       this.adeIndex = new Map();
       this.adeEvents = [];
+      this.teacherLexicon = new Map();
     }
   }
 
@@ -119,14 +121,33 @@ export class PlanningStore {
     // Enrichissement ADE : si un cours a une salle générique "FSS…", on
     // remplace par la salle précise trouvée dans ADECal.vcs (si dispo).
     let adeHits = 0;
+    let teacherFixes = 0;
     for (const [id, c] of byId) {
-      if (!isGenericFssRoom(c.room)) continue;
-      const hit = findAdeRoom(this.adeIndex, c.date, c.startTime, c.room);
-      if (!hit) continue;
-      byId.set(id, { ...c, room: hit.location, roomSource: 'ade', roomFromExcel: c.room });
-      adeHits++;
+      let updated = c;
+      if (isGenericFssRoom(c.room)) {
+        const hit = findAdeRoom(this.adeIndex, c.date, c.startTime, c.room);
+        if (hit) {
+          updated = { ...updated, room: hit.location, roomSource: 'ade', roomFromExcel: c.room };
+          adeHits++;
+        }
+      }
+      // Normalisation du nom d'enseignant : si le champ Excel semble
+      // abrégé ('S Roffino', 'I ABOUT') on cherche la version canonique
+      // dans le lexique ADE via le nom de famille.
+      if (this.teacherLexicon?.size && looksAbbreviated(updated.teacher)) {
+        const surname = extractSurname(updated.teacher);
+        if (surname) {
+          const canonical = this.teacherLexicon.get(surname);
+          if (canonical && normalizeName(canonical) !== normalizeName(updated.teacher)) {
+            updated = { ...updated, teacher: canonical, teacherFromExcel: c.teacher, teacherSource: 'ade' };
+            teacherFixes++;
+          }
+        }
+      }
+      if (updated !== c) byId.set(id, updated);
     }
     if (adeHits) console.log(`[ade] ${adeHits} salles précisées depuis l'ADE`);
+    if (teacherFixes) console.log(`[ade] ${teacherFixes} noms d'enseignants complétés depuis l'ADE`);
     this.cache = {
       parsedAt: this.base.parsedAt,
       overridesUpdatedAt: this.overrides.updatedAt,
@@ -215,6 +236,10 @@ export class PlanningStore {
     }
     return { added, removed, modified };
   }
+}
+
+function normalizeName(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
 function sortCourses(a, b) {

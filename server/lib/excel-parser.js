@@ -136,6 +136,23 @@ function splitTeacherRoom(segment) {
 // vrai prof. On les route en notes (et le vrai prof pourra prendre le champ).
 const NOT_A_TEACHER = /^\s*(?:SAE|EVAL|TP|TD|CM|SUIVI)\b/i;
 
+// Validation post-extraction : le segment doit ressembler à un nom.
+// Rejette :
+//   - un point d'interrogation quelque part
+//   - « à confirmer / préciser / voir / valider »
+//   - trop long (> 60 chars)
+//   - un unique mot de 1 à 2 caractères
+function looksLikeTeacherName(s) {
+  const t = String(s || '').trim();
+  if (!t) return false;
+  if (t.length > 60) return false;
+  if (/\?/.test(t)) return false;
+  if (/\bà\s+(confirmer|préciser|preciser|voir|valider)\b/i.test(t)) return false;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length === 1 && words[0].length <= 2) return false;
+  return true;
+}
+
 function parseCourseContent(rawText) {
   const parts = splitFields(rawText);
   if (!parts.length) {
@@ -174,8 +191,9 @@ function parseCourseContent(rawText) {
       notes.push(part);
       continue;
     }
-    // Sinon, considérons ça comme un prof/complément
-    if (!teacher) teacher = part;
+    // Sinon, considérons ça comme un prof/complément. On accepte seulement
+    // si ça ressemble à un nom (voir looksLikeTeacherName), sinon → notes.
+    if (!teacher && looksLikeTeacherName(part)) teacher = part;
     else notes.push(part);
   }
 

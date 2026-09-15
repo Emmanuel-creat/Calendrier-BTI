@@ -94,14 +94,71 @@ export function normalizeAdeEvent(e) {
   };
 }
 
+// ─── Lexique enseignants (déduit d'ADE) ─────────────────────
+// Extrait le "nom de famille" candidat d'un texte : le mot le plus long,
+// ou tout mot entièrement en majuscules (convention nom de famille FR).
+export function extractSurname(name) {
+  if (!name) return null;
+  const norm = String(name).normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const words = norm.split(/[\s.\-\/,]+/).filter((w) => w.length >= 3);
+  if (!words.length) return null;
+  const upper = words.filter((w) => w === w.toUpperCase());
+  if (upper.length === 1) return upper[0].toLowerCase();
+  // sinon on prend le mot le plus long comme heuristique
+  const longest = words.reduce((a, b) => (b.length > a.length ? b : a));
+  return longest.toLowerCase();
+}
+
+// Un nom "abrégé" ressemble à "S Roffino", "I. ABOUT", "T.Krieger", ou
+// juste un nom seul (pas de prénom).
+export function looksAbbreviated(name) {
+  if (!name) return true;
+  const t = String(name).trim();
+  const words = t.split(/[\s.]+/).filter(Boolean);
+  if (words.length === 1) return true;
+  if (words.some((w) => /^[A-Z]$/i.test(w))) return true;
+  return false;
+}
+
+// Bascule "TAILLEBOT Virginie" → "Virginie TAILLEBOT" (convention FR).
+export function displayNameFR(name) {
+  if (!name) return name;
+  const words = String(name).trim().split(/\s+/);
+  if (words.length < 2) return name;
+  // On considère qu'un mot est "surname" s'il est entièrement en majuscules
+  // (au moins 2 caractères, en ignorant les accents).
+  const isUpper = (w) => {
+    const stripped = w.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    return stripped.length >= 2 && stripped === stripped.toUpperCase() && /[A-Z]/.test(stripped);
+  };
+  const upperWords = words.filter(isUpper);
+  if (upperWords.length !== 1) return name;
+  const surname = upperWords[0];
+  const rest = words.filter((w) => w !== surname);
+  return `${rest.join(' ')} ${surname}`;
+}
+
+export function buildTeacherLexicon(normalized) {
+  const lex = new Map();
+  for (const e of normalized) {
+    if (!e.teacher) continue;
+    const surname = extractSurname(e.teacher);
+    if (!surname) continue;
+    // On garde la première forme rencontrée, en la basculant FR.
+    if (!lex.has(surname)) lex.set(surname, displayNameFR(e.teacher));
+  }
+  return lex;
+}
+
 export async function loadAdeIndex(filePath) {
   try {
     const text = await fs.readFile(filePath, 'utf8');
     const events = parseVcs(text);
     const normalized = events.map(normalizeAdeEvent).filter(Boolean);
-    return { events, index: buildRoomIndex(events), normalized };
+    const teacherLexicon = buildTeacherLexicon(normalized);
+    return { events, index: buildRoomIndex(events), normalized, teacherLexicon };
   } catch (err) {
-    if (err.code === 'ENOENT') return { events: [], index: new Map(), normalized: [] };
+    if (err.code === 'ENOENT') return { events: [], index: new Map(), normalized: [], teacherLexicon: new Map() };
     throw err;
   }
 }
