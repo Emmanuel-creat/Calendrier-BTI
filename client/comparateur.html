@@ -42,6 +42,24 @@
       </div>
 
       <div class="nav-group">
+        <p class="nav-title">Comparer sur</p>
+        <div class="cmp-fields" id="cmp-fields">
+          <label class="cmp-field">
+            <input type="checkbox" data-field="horaires" checked />
+            <span>Horaires</span>
+          </label>
+          <label class="cmp-field">
+            <input type="checkbox" data-field="matieres" checked />
+            <span>Matières</span>
+          </label>
+          <label class="cmp-field">
+            <input type="checkbox" data-field="prof" checked />
+            <span>Prof</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="nav-group">
         <button type="button" class="btn-compare" id="btn-compare">Comparer maintenant</button>
       </div>
 
@@ -90,16 +108,7 @@
     <div class="modal-panel glass modal-panel-wide" role="dialog" aria-labelledby="cmp-modal-title">
       <button class="modal-close" type="button" data-modal-close aria-label="Fermer">×</button>
       <h2 id="cmp-modal-title">Détail du jour</h2>
-      <div class="cmp-diff-wrap">
-        <div class="cmp-diff-col">
-          <h3>Excel</h3>
-          <div id="cmp-diff-excel" class="cmp-diff-list"></div>
-        </div>
-        <div class="cmp-diff-col">
-          <h3>ADE</h3>
-          <div id="cmp-diff-ade" class="cmp-diff-list"></div>
-        </div>
-      </div>
+      <div class="cmp-day-grid" id="cmp-day-grid"></div>
     </div>
   </div>
 
