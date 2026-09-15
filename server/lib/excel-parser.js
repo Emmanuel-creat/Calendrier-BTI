@@ -122,6 +122,10 @@ function splitFields(text) {
 
 const ROOM_HINT = /\b(?:salle|amphi|luminy|timone|sainte[- ]marguerite|ergolab|polytech|centrale|château gombert|ch\.? gombert|iut aix|iut d'aix|hopital|hôpital|zoom|visio|giboc|locaux|st charles|st\.? charles|campus|faculté|fac\b|imus?ti|fss|1er étage)/i;
 
+// Mot(s) qui marquent le DÉBUT d'un lieu à l'intérieur d'un segment mêlé.
+// Sert à séparer "Franck Launay Sainte Marguerite" → prof + salle.
+const ROOM_ANCHOR = /\b(?:Salle|Amphi|Luminy|Timone|Sainte(?:[- ]Marguerite)?|Ergolab|Polytech|Centrale|Château|Ch\.? Gombert|IUT|Hôpital|Hopital|Locaux|Giboc|FSS|Fac|Faculté|Campus|Zoom|Visio|École|Ecole)\b/;
+
 function splitTeacherRoom(segment) {
   // Sépare "Prénom NOM (Salle)" ou "Prof / Prof2 (Salle)" en {teacher, room}.
   const parenMatch = segment.match(/^(.*?)\s*\((.+?)\)\s*$/);
@@ -129,6 +133,19 @@ function splitTeacherRoom(segment) {
     return { teacher: parenMatch[1].trim(), room: parenMatch[2].trim() };
   }
   return null;
+}
+
+// Sépare "Nom Prénom Sainte Marguerite" (sans parenthèses) en {teacher, room}
+// en cherchant le premier "mot-ancre" de lieu.
+function splitTeacherLocation(segment) {
+  const m = ROOM_ANCHOR.exec(segment);
+  if (!m || m.index === 0) return null;
+  const before = segment.slice(0, m.index).trim().replace(/[\s,\-–—]+$/, '');
+  const after = segment.slice(m.index).trim();
+  if (!before || !after) return null;
+  // Le "avant" doit ressembler à un nom (rejeté sinon = tout va en salle).
+  if (!looksLikeTeacherName(before)) return null;
+  return { teacher: before, room: after };
 }
 
 // Étiquettes qui NE sont pas des noms de professeur : "SAE Xxxx",
@@ -188,8 +205,15 @@ function parseCourseContent(rawText) {
       else notes.push(`(${tr.room})`);
       continue;
     }
-    // Détection heuristique de salle
+    // Détection heuristique de salle. Avant de tout mettre en salle, on
+    // tente de séparer "Prénom NOM Sainte Marguerite" en {teacher, room}.
     if (!room && ROOM_HINT.test(part)) {
+      const tl = splitTeacherLocation(part);
+      if (tl && !teacher) {
+        teacher = tl.teacher;
+        room = tl.room;
+        continue;
+      }
       room = part.trim();
       continue;
     }
