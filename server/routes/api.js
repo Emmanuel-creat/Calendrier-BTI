@@ -1,12 +1,12 @@
 import express from 'express';
 import { requireAdmin, verifyPassword, issueToken, revokeToken, checkToken } from '../lib/auth.js';
 
-export function apiRoutes(store, { syncAndRebuild, remoteState } = {}) {
+export function apiRoutes(store, { syncAndRebuild, remoteState, adeState } = {}) {
   const router = express.Router();
 
   // ─── Lecture publique ────────────────────────────────────────────────
   router.get('/meta', (_req, res) => {
-    res.json({ ...store.meta(), remote: remoteState || null });
+    res.json({ ...store.meta(), remote: remoteState || null, ade: adeState || null });
   });
 
   router.get('/weeks', (_req, res) => {
@@ -24,6 +24,43 @@ export function apiRoutes(store, { syncAndRebuild, remoteState } = {}) {
       courses = courses.filter((c) => matchesProfile(c, p));
     }
     res.json({ courses });
+  });
+
+  // ─── Comparateur Excel ↔ ADE ────────────────────────────────
+  router.get('/comparator', (_req, res) => {
+    const excel = store.getCourses().filter((c) => (c.origin || 'excel') === 'excel');
+    const ade = store.getAdeEvents ? store.getAdeEvents() : [];
+
+    const strip = (o) => ({
+      title: o.title || '',
+      startTime: o.startTime || '',
+      endTime: o.endTime || '',
+      room: o.room || '',
+      teacher: o.teacher || '',
+      date: o.date || '',
+      dayOfWeek: o.dayOfWeek || 0,
+    });
+
+    const byDate = new Map();
+    const upsert = (date) => {
+      if (!byDate.has(date)) byDate.set(date, { date, excel: [], ade: [] });
+      return byDate.get(date);
+    };
+    for (const c of excel) if (c.date) upsert(c.date).excel.push(strip(c));
+    for (const e of ade) if (e.date) upsert(e.date).ade.push(strip(e));
+
+    const days = [...byDate.values()]
+      .filter((d) => d.excel.length || d.ade.length)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    for (const d of days) {
+      d.excel.sort((a, b) => a.startTime.localeCompare(b.startTime));
+      d.ade.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+
+    res.json({
+      excelMeta: store.meta(),
+      days,
+    });
   });
 
   router.get('/profiles', (_req, res) => {

@@ -1,0 +1,164 @@
+/* ─── Comparateur : réutilise app.css et surcharge le minimum ─── */
+
+.cmp-source {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(0,0,0,0.05);
+  margin-bottom: 6px;
+}
+.cmp-source-label {
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.02em;
+}
+.cmp-source-val {
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 500;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-compare {
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 0;
+  background: var(--ink);
+  color: #f1f1f1;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.btn-compare:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
+.btn-compare[disabled] { opacity: .6; cursor: default; }
+
+.dot.d-diff { background: #f0b090; border: 1px solid #b8703a; }
+.dot.d-ok   { background: #d0e2cf; border: 1px solid #547e56; }
+
+.cmp-link {
+  display: inline-block;
+  color: var(--ink-muted);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 6px 4px;
+}
+.cmp-link:hover { color: var(--ink); }
+
+/* ─── Grille des jours ────────────────────────────────────── */
+.cmp-grid-wrap {
+  background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 20px;
+  padding: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.06);
+  backdrop-filter: blur(20px);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.cmp-grid-wrap::-webkit-scrollbar { display: none; }
+
+.cmp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.cmp-tile {
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(0,0,0,0.06);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cmp-tile:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+.cmp-tile.has-diff {
+  background: #f8d8bd;
+  border-color: #b8703a;
+  color: #4d2c11;
+}
+.cmp-tile.is-ok {
+  background: rgba(210,226,207,0.55);
+  border-color: rgba(84,126,86,0.45);
+}
+.cmp-tile-day {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: inherit;
+  opacity: .7;
+}
+.cmp-tile-date {
+  font-family: "Inter Tight", sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: inherit;
+}
+.cmp-tile-meta {
+  font-size: 12px;
+  color: inherit;
+  opacity: .75;
+  margin-top: 4px;
+}
+.cmp-tile-badge {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: rgba(255,255,255,0.6);
+  color: inherit;
+  margin-top: 4px;
+}
+
+/* ─── Modale détail : deux colonnes Excel | ADE ─────────────── */
+.modal-panel-wide { max-width: 900px; }
+.cmp-diff-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 8px;
+}
+.cmp-diff-col h3 {
+  margin: 0 0 8px;
+  font-family: "Inter Tight", sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.cmp-diff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cmp-item {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.65);
+  border: 1px solid rgba(0,0,0,0.05);
+  font-size: 12px;
+  color: var(--ink);
+}
+.cmp-item.state-match { background: rgba(210,226,207,0.35); border-color: rgba(84,126,86,0.35); }
+.cmp-item.state-diff  { background: #f8d8bd; border-color: #b8703a; }
+.cmp-item.state-missing { background: repeating-linear-gradient(45deg, #efeae0 0, #efeae0 6px, #f4efe5 6px, #f4efe5 12px); color: var(--ink-muted); font-style: italic; }
+.cmp-item strong { display: block; font-weight: 600; font-size: 13px; }
+.cmp-item .row { color: var(--ink-muted); font-size: 11px; margin-top: 2px; }
+.cmp-empty-col { color: var(--ink-subtle); font-style: italic; padding: 12px 4px; font-size: 12px; }
+
+@media (max-width: 720px) {
+  .cmp-diff-wrap { grid-template-columns: 1fr; }
+}

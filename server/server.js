@@ -34,6 +34,10 @@ const remoteState = {
   lastModified: null,
   syncedAt: null,
 };
+const adeState = {
+  syncedAt: null,
+  eventCount: null,
+};
 
 const store = new PlanningStore({
   excelPath: EXCEL_PATH,
@@ -86,6 +90,8 @@ async function syncAndRebuild() {
     } else {
       console.log(`[sync] ADE à jour (${res.reason})`);
     }
+    adeState.syncedAt = new Date().toISOString();
+    adeState.eventCount = store.getAdeEvents?.().length || null;
   } catch (err) {
     console.error(`[sync] ADE erreur :`, err.message);
     result.ade = { updated: false, error: err.message };
@@ -123,12 +129,17 @@ const app = express();
 app.disable('x-powered-by');
 app.use(cookieParser());
 
-app.use('/api', apiRoutes(store, { syncAndRebuild, remoteState }));
+app.use('/api', apiRoutes(store, { syncAndRebuild, remoteState, adeState }));
 
 // Interface constructeur (URL non annoncée dans l'UI publique).
 app.use('/constructeur', express.static(path.join(root, 'client', 'admin')));
 app.get('/constructeur', (_req, res) => {
   res.sendFile(path.join(root, 'client', 'admin', 'index.html'));
+});
+
+// Page Comparateur ADE ↔ Excel (accepte majuscules et minuscules).
+app.get(/^\/[Cc]omparateur$/, (_req, res) => {
+  res.sendFile(path.join(root, 'client', 'comparateur.html'));
 });
 
 // Fichiers statiques de l'application publique

@@ -40,13 +40,19 @@ export class PlanningStore {
   async loadAde() {
     if (!this.adePath) return;
     try {
-      const { index } = await loadAdeIndex(this.adePath);
+      const { index, normalized } = await loadAdeIndex(this.adePath);
       this.adeIndex = index;
+      this.adeEvents = normalized || [];
       console.log(`[ade] ${index.size} événements ADE indexés depuis ${this.adePath}`);
     } catch (err) {
       console.warn(`[ade] impossible de charger ${this.adePath}:`, err.message);
       this.adeIndex = new Map();
+      this.adeEvents = [];
     }
+  }
+
+  getAdeEvents() {
+    return this.adeEvents || [];
   }
 
   async loadCache() {

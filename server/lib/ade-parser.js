@@ -65,13 +65,43 @@ function buildRoomIndex(events) {
   return idx;
 }
 
+// Retourne un événement normalisé et exploitable :
+// { title, room, teacher, date, startTime, endTime, dayOfWeek }.
+function cleanText(s) {
+  return String(s || '').replace(/\\,/g, ',').replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function extractTeacher(description) {
+  if (!description) return '';
+  const cleaned = cleanText(description);
+  // Format typique : "M2 BTI CANDONI Stephane (Modifié le:04/06/2026 …)"
+  const m = /M2\s*BTI\s+([^\(]*?)\s*(?:\(|$)/i.exec(cleaned);
+  if (!m) return '';
+  return m[1].trim().replace(/^\W+|\W+$/g, '');
+}
+export function normalizeAdeEvent(e) {
+  if (!e?.DTSTART) return null;
+  const start = utcToParis(e.DTSTART);
+  const end = e.DTEND ? utcToParis(e.DTEND) : null;
+  const dow = new Date(start.dateISO + 'T00:00:00Z').getUTCDay() || 7; // 1..7
+  return {
+    title: cleanText(e.SUMMARY),
+    room: cleanText(e.LOCATION),
+    teacher: extractTeacher(e.DESCRIPTION),
+    date: start.dateISO,
+    startTime: start.hhmm,
+    endTime: end?.hhmm || null,
+    dayOfWeek: dow,
+  };
+}
+
 export async function loadAdeIndex(filePath) {
   try {
     const text = await fs.readFile(filePath, 'utf8');
     const events = parseVcs(text);
-    return { events, index: buildRoomIndex(events) };
+    const normalized = events.map(normalizeAdeEvent).filter(Boolean);
+    return { events, index: buildRoomIndex(events), normalized };
   } catch (err) {
-    if (err.code === 'ENOENT') return { events: [], index: new Map() };
+    if (err.code === 'ENOENT') return { events: [], index: new Map(), normalized: [] };
     throw err;
   }
 }
