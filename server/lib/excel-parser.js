@@ -170,6 +170,18 @@ function looksLikeTeacherName(s) {
   return true;
 }
 
+// Détection stricte "nom de personne" : contient un nom de famille en
+// MAJUSCULES 2+ caractères OU une initiale isolée ("T.", "S", "I.").
+// Utilisé pour distinguer un tag SAE d'un vrai titre de cours quand le
+// segment suivant est présent.
+function looksLikePersonName(s) {
+  const t = String(s || '').trim();
+  if (!t || t.length > 60) return false;
+  const stripped = t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  // Un mot tout en majuscules de 2+ char OU une initiale (1 lettre + espace/point)
+  return /(?:^|\s)(?:[A-Z]{2,}|[A-Z]\.?)(?:\s|$)/.test(stripped);
+}
+
 function parseCourseContent(rawText) {
   const parts = splitFields(rawText);
   if (!parts.length) {
@@ -177,10 +189,11 @@ function parseCourseContent(rawText) {
   }
 
   const notes = [];
-  // Si le PREMIER segment est une étiquette SAE / EVAL / TP / TD / CM / SUIVI,
-  // ce n'est pas le titre mais un tag. On le met en notes et on regarde
-  // le segment suivant pour le titre.
-  while (parts.length && NOT_A_TEACHER.test(parts[0])) {
+  // Si le premier segment est une étiquette SAE / EVAL / TP / TD / CM / SUIVI,
+  // on ne le déplace que si le segment SUIVANT n'est pas déjà un nom de
+  // personne — sinon c'est que le SAE est vraiment le titre du cours
+  // (ex. "SAE Suivi de Projet en Modélisation numérique | T. Poncin").
+  while (parts.length >= 2 && NOT_A_TEACHER.test(parts[0]) && !looksLikePersonName(parts[1])) {
     notes.push(parts.shift());
   }
 
