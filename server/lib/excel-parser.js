@@ -21,7 +21,9 @@ const DAY_BLOCKS = [
   { day: 'Mardi',    dayOfWeek: 2, dateCol: 15, slotStart: 16, slotEnd: 25 }, // O + P..Y
   { day: 'Mercredi', dayOfWeek: 3, dateCol: 26, slotStart: 27, slotEnd: 36 }, // Z + AA..AJ
   { day: 'Jeudi',    dayOfWeek: 4, dateCol: 37, slotStart: 38, slotEnd: 47 }, // AK + AL..AU
-  { day: 'Vendredi', dayOfWeek: 5, dateCol: 48, slotStart: 49, slotEnd: 58 }, // AV + AW..BF (mais BF est utilisé pour "sem. ECM")
+  // Vendredi n'a que 9 créneaux (8h-17h) : AW à BE. La colonne BF sert
+  // uniquement à l'annotation « semaine ECM » et ne doit pas être scannée.
+  { day: 'Vendredi', dayOfWeek: 5, dateCol: 48, slotStart: 49, slotEnd: 57 }, // AV + AW..BE
 ];
 
 // Créneaux 8h à 18h par pas d'1h. slot 0 = 8h-9h, slot 9 = 17h-18h.
@@ -314,6 +316,9 @@ export function parseWorkbook(workbook, sheetName = '26_27_V5', options = {}) {
 
         // Cellules "marqueur" (ok, ?, …) — on ignore.
         if (NOISE_VALUES.has(raw) || raw.length <= 3) continue;
+        // Filet de sécurité : les annotations « semaine ECM » /
+        // « semaines prises pour ECM » ne sont jamais des cours.
+        if (/^\s*semaines?\s+(?:prises\s+pour\s+)?ECM\s*$/i.test(raw)) continue;
 
         const color = cellFillColor(cell);
         const special = isSpecialEvent(raw);
