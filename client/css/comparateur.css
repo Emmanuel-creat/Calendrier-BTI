@@ -38,7 +38,23 @@
 .btn-compare:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
 .btn-compare[disabled] { opacity: .6; cursor: default; }
 
+.btn-refresh {
+  margin-top: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.6);
+  color: var(--ink-2);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 120ms ease;
+}
+.btn-refresh:hover { background: rgba(255,255,255,0.9); color: var(--ink); }
+.btn-refresh[disabled] { opacity: .6; cursor: default; }
+
 .dot.d-diff { background: #f0b090; border: 1px solid #b8703a; }
+.dot.d-fss  { background: #cfe0ec; border: 1px solid #4a83a4; }
 .dot.d-ok   { background: #d0e2cf; border: 1px solid #547e56; }
 
 .cmp-fields {
@@ -234,6 +250,22 @@
 .cmp-block.diff {
   background: #f8d8bd;
   border-left-color: #b8703a;
+}
+.cmp-block.fss {
+  background: #cfe0ec;
+  border-left-color: #4a83a4;
+}
+.cmp-block .fss-tag {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  color: #2b5872;
+  background: rgba(255,255,255,0.65);
+  border-radius: 4px;
+  padding: 1px 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
 }
 .cmp-block.missing {
   background: repeating-linear-gradient(45deg, #efeae0 0, #efeae0 6px, #f4efe5 6px, #f4efe5 12px);

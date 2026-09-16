@@ -16,7 +16,7 @@ const elFields = $('cmp-fields');
 
 const state = {
   data: null,
-  fields: { horaires: true, matieres: true, prof: true },
+  fields: { horaires: true, matieres: true, prof: true, salles: true },
   analysis: null,
 };
 
@@ -31,6 +31,8 @@ const GRID_END_HOUR = 18;
 
 function wireEvents() {
   elBtn.addEventListener('click', runCompare);
+  const elRefresh = document.getElementById('btn-refresh');
+  if (elRefresh) elRefresh.addEventListener('click', runRefresh);
   elFields.addEventListener('change', (e) => {
     const field = e.target?.dataset?.field;
     if (!field) return;
@@ -41,6 +43,31 @@ function wireEvents() {
     if (e.target instanceof Element && e.target.hasAttribute('data-modal-close')) closeModal();
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+}
+
+async function runRefresh() {
+  const btn = document.getElementById('btn-refresh');
+  if (!btn) return;
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = 'Synchronisation…';
+  try {
+    const r = await fetch('/api/refresh', { method: 'POST', credentials: 'same-origin' });
+    if (r.status === 429) {
+      const j = await r.json();
+      alert(`Trop tôt — attends encore ${j.waitSeconds} s.`);
+    } else if (!r.ok) {
+      alert(`Erreur: HTTP ${r.status}`);
+    } else {
+      await loadMeta();
+      if (state.data) await runCompare();
+    }
+  } catch (e) {
+    alert(`Erreur: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
 }
 
 async function loadMeta() {
@@ -180,6 +207,23 @@ function timeToMin(t) {
   return h * 60 + m;
 }
 
+// Salle Excel générique de type "FSS Luminy", "Salles info FSS Luminy" ?
+function isFssRoom(s) {
+  return /\bFSS\b/i.test(String(s || ''));
+}
+// Deux salles se correspondent avec tolérance sur casse/accents/mots outils.
+function roomsMatch(a, b) {
+  const na = normalizeText(a);
+  const nb = normalizeText(b);
+  if (!na || !nb) return true; // rien à comparer
+  if (na === nb) return true;
+  const wa = new Set(na.split(' ').filter((w) => w.length >= 3));
+  const wb = new Set(nb.split(' ').filter((w) => w.length >= 3));
+  if (!wa.size || !wb.size) return true;
+  const inter = [...wa].filter((w) => wb.has(w)).length;
+  return inter / Math.min(wa.size, wb.size) >= 0.5;
+}
+
 // Analyse un jour : appariement Excel↔ADE + détermination des diffs
 // selon les champs cochés dans la sidebar.
 function analyseDay(day) {
@@ -218,12 +262,26 @@ function analyseDay(day) {
       items.push({ kind: 'missing_ade', excel: e, isDiff });
     } else {
       const reasons = [];
+      let isFss = false;
       if (f.horaires && (e.startTime !== e.matched.startTime || e.endTime !== e.matched.endTime)) reasons.push('horaires');
       if (f.matieres && !titlesMatch(e.title, e.matched.title)) reasons.push('matières');
       if (f.prof && !teachersMatch(e.teacher, e.matched.teacher)) reasons.push('prof');
+      if (f.salles) {
+        // La salle Excel avant enrichissement (si dispo) est stockée dans roomFromExcel.
+        const excelOriginal = e.roomFromExcel || e.room || '';
+        const adeRoom = e.matched.room || '';
+        if (roomsMatch(excelOriginal, adeRoom)) {
+          // Rien à signaler
+        } else if (isFssRoom(excelOriginal)) {
+          // Excel générique "FSS…" alors qu'ADE a une salle précise : normal.
+          isFss = true;
+        } else {
+          reasons.push('salle');
+        }
+      }
       const isDiff = reasons.length > 0;
       if (isDiff) diffCount++;
-      items.push({ kind: 'pair', excel: e, ade: e.matched, isDiff, reasons });
+      items.push({ kind: 'pair', excel: e, ade: e.matched, isDiff, reasons, isFss });
     }
   }
   for (const a of ade) {
@@ -247,8 +305,10 @@ function openDetail(entry) {
   const adeBlocks = [];
   for (const it of items) {
     if (it.kind === 'pair') {
-      excelBlocks.push(makeBlock(it.excel, it.isDiff ? 'diff' : '', it.reasons));
-      adeBlocks.push(makeBlock(it.ade, it.isDiff ? 'diff' : '', it.reasons));
+      const cls = it.isDiff ? 'diff' : (it.isFss ? 'fss' : '');
+      const tags = it.isDiff ? it.reasons : (it.isFss ? ['salle FSS'] : []);
+      excelBlocks.push(makeBlock(it.excel, cls, tags, { isFss: it.isFss }));
+      adeBlocks.push(makeBlock(it.ade, cls, tags, { isFss: it.isFss }));
     } else if (it.kind === 'missing_ade') {
       excelBlocks.push(makeBlock(it.excel, it.isDiff ? 'diff' : '', ['manque ADE']));
     } else if (it.kind === 'missing_excel') {
@@ -272,14 +332,15 @@ function openDetail(entry) {
   elModal.hidden = false;
 }
 
-function makeBlock(c, diffClass, reasons) {
+function makeBlock(c, diffClass, reasons, opts = {}) {
   if (!c) return '';
   const startH = hourValue(c.startTime);
   const endH = hourValue(c.endTime);
   if (startH == null || endH == null) return '';
   const top = Math.max(0, startH - GRID_START_HOUR);
   const height = Math.max(0.4, endH - startH);
-  const tag = reasons?.length ? `<span class="diff-tag">${escapeHtml(reasons.join(' · '))}</span>` : '';
+  const tagClass = opts.isFss ? 'fss-tag' : 'diff-tag';
+  const tag = reasons?.length ? `<span class="${tagClass}">${escapeHtml(reasons.join(' · '))}</span>` : '';
   return `<div class="cmp-block ${diffClass}"
     style="top: calc(var(--dg-hour-height) * ${top}); height: calc(var(--dg-hour-height) * ${height} - 4px);">
     <span class="cmp-block-title">${escapeHtml(c.title || '(sans titre)')}</span>

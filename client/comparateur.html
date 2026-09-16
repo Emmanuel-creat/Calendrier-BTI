@@ -60,17 +60,23 @@
             <input type="checkbox" data-field="prof" checked />
             <span>Prof</span>
           </label>
+          <label class="cmp-field">
+            <input type="checkbox" data-field="salles" checked />
+            <span>Salles</span>
+          </label>
         </div>
       </div>
 
       <div class="nav-group">
         <button type="button" class="btn-compare" id="btn-compare">Comparer maintenant</button>
+        <button type="button" class="btn-refresh" id="btn-refresh" title="Retélécharge l'Excel AMU box et le flux ADE">↻ Rafraîchir données</button>
       </div>
 
       <div class="nav-group">
         <p class="nav-title">Légende</p>
         <ul class="legend">
           <li><span class="dot d-diff"></span>Différence détectée</li>
+          <li><span class="dot d-fss"></span>Salle FSS (précisée par ADE)</li>
           <li><span class="dot d-ok"></span>Concordant</li>
         </ul>
       </div>

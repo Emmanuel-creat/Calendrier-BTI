@@ -26,6 +26,21 @@ export function apiRoutes(store, { syncAndRebuild, remoteState, adeState } = {})
     res.json({ courses });
   });
 
+  // ─── Refresh public (rate-limité) ────────────────────────────
+  let lastRefresh = 0;
+  router.post('/refresh', async (_req, res) => {
+    if (!syncAndRebuild) return res.status(501).json({ error: 'sync-disabled' });
+    const now = Date.now();
+    const cooldown = 60 * 1000;
+    if (now - lastRefresh < cooldown) {
+      const waitMs = cooldown - (now - lastRefresh);
+      return res.status(429).json({ error: 'cooldown', waitSeconds: Math.ceil(waitMs / 1000) });
+    }
+    lastRefresh = now;
+    const result = await syncAndRebuild();
+    res.json({ ok: true, result });
+  });
+
   // ─── Comparateur Excel ↔ ADE ────────────────────────────────
   router.get('/comparator', (_req, res) => {
     const excel = store.getCourses().filter((c) => (c.origin || 'excel') === 'excel');
@@ -36,6 +51,10 @@ export function apiRoutes(store, { syncAndRebuild, remoteState, adeState } = {})
       startTime: o.startTime || '',
       endTime: o.endTime || '',
       room: o.room || '',
+      // Salle telle que saisie dans l'Excel avant enrichissement ADE.
+      // Sert au comparateur pour détecter les cas "FSS -> Salle précise".
+      roomFromExcel: o.roomFromExcel || null,
+      roomSource: o.roomSource || null,
       teacher: o.teacher || '',
       date: o.date || '',
       dayOfWeek: o.dayOfWeek || 0,
