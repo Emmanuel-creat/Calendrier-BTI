@@ -211,6 +211,18 @@ function timeToMin(t) {
 function isFssRoom(s) {
   return /\bFSS\b/i.test(String(s || ''));
 }
+// Salle ADE générique de type "Extérieur", "STAPS" seul → l'Excel peut
+// avoir un lieu plus précis, ce n'est pas une vraie erreur.
+function isGenericAdeRoom(s) {
+  const t = normalizeText(s);
+  if (!t) return false;
+  if (/^exterieur$/.test(t)) return true;
+  if (/^staps$/.test(t)) return true;
+  if (/^staps luminy$/.test(t)) return true;
+  if (/^fss$/.test(t)) return true;
+  if (/^luminy$/.test(t)) return true;
+  return false;
+}
 // Deux salles se correspondent avec tolérance sur casse/accents/mots outils.
 function roomsMatch(a, b) {
   const na = normalizeText(a);
@@ -263,6 +275,7 @@ function analyseDay(day) {
     } else {
       const reasons = [];
       let isFss = false;
+      let halfReason = null;
       if (f.horaires && (e.startTime !== e.matched.startTime || e.endTime !== e.matched.endTime)) reasons.push('horaires');
       if (f.matieres && !titlesMatch(e.title, e.matched.title)) reasons.push('matières');
       if (f.prof && !teachersMatch(e.teacher, e.matched.teacher)) reasons.push('prof');
@@ -275,13 +288,19 @@ function analyseDay(day) {
         } else if (isFssRoom(excelOriginal)) {
           // Excel générique "FSS…" alors qu'ADE a une salle précise : normal.
           isFss = true;
+          halfReason = 'salle FSS';
+        } else if (isGenericAdeRoom(adeRoom)) {
+          // ADE mis 'Extérieur' / 'STAPS' seul → l'Excel est plus précis,
+          // on considère aussi ça comme une demi-erreur.
+          isFss = true;
+          halfReason = 'ADE ' + adeRoom.toLowerCase();
         } else {
           reasons.push('salle');
         }
       }
       const isDiff = reasons.length > 0;
       if (isDiff) diffCount++;
-      items.push({ kind: 'pair', excel: e, ade: e.matched, isDiff, reasons, isFss });
+      items.push({ kind: 'pair', excel: e, ade: e.matched, isDiff, reasons, isFss, halfReason });
     }
   }
   for (const a of ade) {
@@ -306,7 +325,7 @@ function openDetail(entry) {
   for (const it of items) {
     if (it.kind === 'pair') {
       const cls = it.isDiff ? 'diff' : (it.isFss ? 'fss' : '');
-      const tags = it.isDiff ? it.reasons : (it.isFss ? ['salle FSS'] : []);
+      const tags = it.isDiff ? it.reasons : (it.isFss ? [it.halfReason || 'salle FSS'] : []);
       excelBlocks.push(makeBlock(it.excel, cls, tags, { isFss: it.isFss }));
       adeBlocks.push(makeBlock(it.ade, cls, tags, { isFss: it.isFss }));
     } else if (it.kind === 'missing_ade') {
