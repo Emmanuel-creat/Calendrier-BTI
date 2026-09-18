@@ -17,7 +17,7 @@ import { parseExcelFile } from './excel-parser.js';
 import { loadAdeIndex, findAdeRoom, isGenericFssRoom, extractSurname, looksAbbreviated } from './ade-parser.js';
 
 export class PlanningStore {
-  constructor({ excelPath, cachePath, overridesPath, adePath, sheetName = '26_27_V5', shiftDays } = {}) {
+  constructor({ excelPath, cachePath, overridesPath, adePath, sheetName, shiftDays } = {}) {
     this.excelPath = excelPath;
     this.cachePath = cachePath;
     this.overridesPath = overridesPath;

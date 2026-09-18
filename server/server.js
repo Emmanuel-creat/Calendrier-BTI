@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PlanningStore } from './lib/store.js';
 import { apiRoutes } from './routes/api.js';
-import { syncRemoteExcel, syncAdeCalendar, DEFAULT_REMOTE_URL, DEFAULT_ADE_URL } from './lib/remote-sync.js';
+import { syncBestPlanning, syncAdeCalendar, DEFAULT_REMOTE_URL, DEFAULT_GDRIVE_FOLDER, DEFAULT_ADE_URL } from './lib/remote-sync.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -19,8 +19,10 @@ const ADE_PATH = process.env.ADE_PATH || path.join(root, 'data', 'ade-cal.vcs');
 // plus élevée du fichier — utile quand l'Excel amont ajoute une révision.
 const EXCEL_SHEET = process.env.EXCEL_SHEET || undefined;
 
-// Auto-sync avec le partage public AMU Box + le flux iCal ADE.
+// Auto-sync avec le partage public AMU Box, le dossier Google Drive, et
+// le flux iCal ADE. Le plus élevé Vxx entre AMU Box et Drive gagne.
 const REMOTE_URL = process.env.REMOTE_URL || DEFAULT_REMOTE_URL;
+const GDRIVE_FOLDER = process.env.GDRIVE_FOLDER || DEFAULT_GDRIVE_FOLDER;
 const ADE_URL = process.env.ADE_URL || DEFAULT_ADE_URL;
 const SYNC_INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MS || 30 * 60 * 1000);
 const SYNC_ENABLED = process.env.REMOTE_SYNC !== '0';
@@ -50,25 +52,28 @@ const store = new PlanningStore({
 
 async function syncAndRebuild() {
   const result = { excel: null, ade: null };
-  // 1) Excel amont (AMU Box)
+  // 1) Choix de la meilleure source Excel (AMU Box vs Google Drive) et
+  //    téléchargement de la plus grande version.
   try {
-    const res = await syncRemoteExcel({
+    const res = await syncBestPlanning({
       shareUrl: REMOTE_URL,
+      gdriveFolder: GDRIVE_FOLDER,
       targetPath: EXCEL_PATH,
       stateFile: SYNC_STATE_PATH,
     });
     result.excel = res;
     if (res.file) {
       remoteState.href = res.file;
-      remoteState.fileName = res.file.split('/').pop();
-      remoteState.lastModified = res.lastModified?.toISOString?.() || null;
+      remoteState.fileName = res.file;
+      remoteState.source = res.source;
+      remoteState.version = res.version;
       remoteState.syncedAt = new Date().toISOString();
     }
     if (res.updated) {
-      console.log(`[sync] nouvel Excel récupéré : ${res.file} (${res.size} B, ${res.lastModified?.toISOString?.() || '—'})`);
+      console.log(`[sync] nouvel Excel récupéré : ${res.file} (V${res.version} via ${res.source}, ${res.size} B)`);
       await store.reimportFromExcel();
     } else {
-      console.log(`[sync] Excel à jour (${res.reason})`);
+      console.log(`[sync] Excel à jour (${res.reason}, source=${res.source || 'n/a'}, V${res.version || '?'})`);
     }
   } catch (err) {
     console.error(`[sync] Excel erreur :`, err.message);

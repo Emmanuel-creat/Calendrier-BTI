@@ -13,6 +13,9 @@ import https from 'node:https';
 // URL par défaut vers le partage AMU Box du planning M2 BTI.
 export const DEFAULT_REMOTE_URL = 'https://amubox.univ-amu.fr/s/ZFKYA7bMk6a9dbr';
 
+// Dossier Google Drive public (contient les versions les plus récentes).
+export const DEFAULT_GDRIVE_FOLDER = '1LWDH8hEdiPINEv7EIQtqWiT9707Tbd_B';
+
 // URL par défaut de l'export iCal ADE (accès anonyme via token embarqué).
 export const DEFAULT_ADE_URL =
   'https://agenda-web-consult.univ-amu.fr/jsp/custom/modules/plannings/anonymous_cal.jsp'
@@ -48,6 +51,20 @@ function httpRequest(url, options = {}) {
     if (options.body) req.write(options.body);
     req.end();
   });
+}
+
+// Suit les redirections HTTP (jusqu'à 5) — nécessaire pour Google Drive.
+async function httpRequestFollow(url, options = {}, maxRedirects = 5) {
+  let current = url;
+  for (let i = 0; i <= maxRedirects; i++) {
+    const res = await httpRequest(current, options);
+    if (res.status >= 300 && res.status < 400 && res.headers.location) {
+      current = new URL(res.headers.location, current).toString();
+      continue;
+    }
+    return res;
+  }
+  throw new Error(`Trop de redirections depuis ${url}`);
 }
 
 // Parse minimal du multistatus WebDAV : on veut juste (href, getlastmodified,
@@ -95,6 +112,135 @@ export async function pickLatestPlanningXlsx(shareUrl = DEFAULT_REMOTE_URL) {
   if (!candidates.length) return null;
   candidates.sort((a, b) => (b.lastModified?.getTime() || 0) - (a.lastModified?.getTime() || 0));
   return candidates[0];
+}
+
+// ─── Google Drive : liste + télécharge un dossier public ─────
+// Utilise la vue « embeddedfolderview » qui rend un HTML statique avec
+// les fichiers et leur ID Drive — aucune API key requise.
+export async function listGoogleDriveFolder(folderId) {
+  const url = `https://drive.google.com/embeddedfolderview?id=${folderId}`;
+  const res = await httpRequest(url);
+  if (res.status !== 200) throw new Error(`GET ${url} → HTTP ${res.status}`);
+  const html = res.body.toString('utf8');
+  const entries = [];
+  // On extrait l'ID depuis l'href /file/d/<ID>/view — plus fiable que
+  // l'attribut id="entry-N--<ID>" car le préfixe "N--" peut cohabiter
+  // avec un ID qui commence lui-même par des chiffres et des tirets.
+  const entryRe = /<div class="flip-entry"[^>]*>[\s\S]*?href="https:\/\/drive\.google\.com\/file\/d\/([^\/]+)\/view[^"]*"[\s\S]*?<div class="flip-entry-title"[^>]*>([^<]+)</g;
+  let m;
+  while ((m = entryRe.exec(html))) {
+    const id = m[1];
+    const name = m[2].trim();
+    entries.push({ id, name });
+  }
+  return entries;
+}
+
+// Extrait le numéro de version d'un nom de fichier "V5_Planning_…" → 5.
+export function extractVersion(name) {
+  const m = /^V(\d+)/i.exec(String(name || '').trim());
+  return m ? Number(m[1]) : 0;
+}
+
+// Cherche dans le dossier Google Drive le xlsx "Planning*BTI" ayant la
+// version la plus élevée, retourne { id, name, version, downloadUrl }.
+export async function pickLatestPlanningFromGDrive(folderId = DEFAULT_GDRIVE_FOLDER) {
+  const entries = await listGoogleDriveFolder(folderId);
+  const candidates = entries
+    .filter((e) => /\.xlsx$/i.test(e.name))
+    .filter((e) => /Planning.*BTI/i.test(e.name))
+    .map((e) => ({ ...e, version: extractVersion(e.name) }));
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.version - a.version);
+  const best = candidates[0];
+  return {
+    source: 'gdrive',
+    id: best.id,
+    name: best.name,
+    version: best.version,
+    downloadUrl: `https://drive.google.com/uc?export=download&id=${best.id}`,
+  };
+}
+
+// Choisit la version la plus élevée entre AMU box et Google Drive.
+// Retourne un descripteur commun { source, name, version, ...(métadonnées propres) }.
+export async function pickBestPlanning({
+  shareUrl = DEFAULT_REMOTE_URL,
+  gdriveFolder = DEFAULT_GDRIVE_FOLDER,
+} = {}) {
+  const results = [];
+  try {
+    const amu = await pickLatestPlanningXlsx(shareUrl);
+    if (amu) {
+      results.push({
+        source: 'amu',
+        name: amu.href.split('/').pop(),
+        version: extractVersion(amu.href.split('/').pop()),
+        raw: amu,
+      });
+    }
+  } catch (err) {
+    console.warn('[sync] AMU box unreachable:', err.message);
+  }
+  try {
+    const gd = await pickLatestPlanningFromGDrive(gdriveFolder);
+    if (gd) results.push({ ...gd });
+  } catch (err) {
+    console.warn('[sync] Google Drive unreachable:', err.message);
+  }
+  if (!results.length) return null;
+  results.sort((a, b) => b.version - a.version);
+  return results[0];
+}
+
+// Télécharge la meilleure version disponible et la sauve dans targetPath.
+export async function syncBestPlanning({
+  shareUrl = DEFAULT_REMOTE_URL,
+  gdriveFolder = DEFAULT_GDRIVE_FOLDER,
+  targetPath,
+  stateFile,
+} = {}) {
+  const best = await pickBestPlanning({ shareUrl, gdriveFolder });
+  if (!best) return { updated: false, reason: 'no-file-found' };
+
+  // Ne rien retélécharger si on est déjà sur la même version + source.
+  let previous = null;
+  if (stateFile) {
+    try { previous = JSON.parse(await fs.readFile(stateFile, 'utf8')); } catch {}
+  }
+  if (previous && previous.name === best.name && previous.source === best.source
+      && (best.source !== 'amu' || previous.lastModified === best.raw.lastModified?.toISOString())) {
+    return { updated: false, reason: 'up-to-date', file: best.name, source: best.source, version: best.version };
+  }
+
+  // Récupération du fichier selon la source.
+  let body;
+  if (best.source === 'amu') {
+    body = await downloadRemoteFile(best.raw, shareUrl);
+  } else {
+    const res = await httpRequestFollow(best.downloadUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
+    if (res.status < 200 || res.status >= 300) {
+      throw new Error(`GDrive → HTTP ${res.status}`);
+    }
+    body = res.body;
+  }
+
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.writeFile(targetPath, body);
+
+  if (stateFile) {
+    await fs.writeFile(stateFile, JSON.stringify({
+      name: best.name,
+      source: best.source,
+      version: best.version,
+      lastModified: best.raw?.lastModified?.toISOString?.() || null,
+      size: body.length,
+      syncedAt: new Date().toISOString(),
+    }, null, 2));
+  }
+  return { updated: true, file: best.name, source: best.source, version: best.version, size: body.length };
 }
 
 function pathJoinDav(origin, davPath) {
